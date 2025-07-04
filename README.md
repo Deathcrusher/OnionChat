@@ -152,6 +152,12 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 - `torpy` is less vetted than the official Tor client; monitor for updates.
 - Compiled binary size is ~60-80 MB due to dependencies.
 
+### Cross-Platform Notes
+- Windows may require the Tor executable in PATH.
+- macOS users must grant camera permissions for QR scanning.
+- Linux systems need `libzbar` for webcam QR scanning.
+
+
 ## Contributing 🤝
 Contributions are welcome! Please follow these steps:
 1. Fork the repository. 🍴
