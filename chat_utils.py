@@ -4,11 +4,11 @@ import secrets
 import tkinter as tk
 from tkinter import messagebox, filedialog, simpledialog
 from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, padding, x25519
+from cryptography.hazmat.primitives.asymmetric import rsa, x25519
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from PIL import Image, ImageTk
+from PIL import ImageTk
 
 try:
     from torpy import TorClient
@@ -29,10 +29,17 @@ try:
 except Exception:
     pyperclip = None
 
+try:
+    from stem.control import Controller
+except Exception:  # pragma: no cover - optional dependency
+    Controller = None
+
 
 def generate_keys():
     """Generate RSA and ECDH key pairs."""
-    rsa_private = rsa.generate_private_key(public_exponent=65537, key_size=4096)
+    rsa_private = rsa.generate_private_key(
+        public_exponent=65537, key_size=4096
+    )
     rsa_public = rsa_private.public_key()
     rsa_bytes = rsa_public.public_bytes(
         encoding=serialization.Encoding.PEM,
@@ -79,7 +86,7 @@ def decrypt_message(nonce: bytes, ct: bytes, tag: bytes, key: bytes):
     dec = cipher.decryptor()
     padded = dec.update(ct) + dec.finalize()
     length = int.from_bytes(padded[:4], "big")
-    return padded[4 : 4 + length].decode()
+    return padded[4:4 + length].decode()
 
 
 def encrypt_bytes(data: bytes, key: bytes):
@@ -183,7 +190,30 @@ def scan_qr_code(root: tk.Tk):
     return None, None, None
 
 
-def setup_hidden_service(port: int):
+def setup_hidden_service(port: int, use_stem: bool = False):
+    """Create a Tor hidden service using torpy or stem."""
+    use_stem = use_stem or os.environ.get("ONIONCHAT_USE_STEM") == "1"
+    if use_stem and Controller is not None:
+        try:
+            ctrl = Controller.from_port()
+            ctrl.authenticate()
+            hs = ctrl.create_ephemeral_hidden_service({80: port}, await_publication=True)
+
+            class _Service:
+                def __init__(self, controller, service_id):
+                    self.controller = controller
+                    self.service_id = service_id
+
+                def close(self):
+                    try:
+                        self.controller.remove_ephemeral_hidden_service(self.service_id)
+                    finally:
+                        self.controller.close()
+
+            return ctrl, _Service(ctrl, hs.service_id), f"{hs.service_id}.onion"
+        except Exception as e:  # pragma: no cover - network dependency
+            print(f"stem failed: {e}")
+
     for attempt in range(3):
         try:
             tor = TorClient()

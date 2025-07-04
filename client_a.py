@@ -5,7 +5,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
-from cryptography.hazmat.primitives import hashes, serialization, padding as asym_padding
+from cryptography.hazmat.primitives import hashes, padding as asym_padding
 from cryptography.hazmat.primitives import constant_time
 
 from chat_utils import (
@@ -30,7 +30,7 @@ def client_a_main(args):
         f.write(rsa_public_bytes)
 
     try:
-        tor, onion, onion_hostname = setup_hidden_service(args.port)
+        tor, onion, onion_hostname = setup_hidden_service(args.port, args.tor_impl == "stem")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to create hidden service: {e}")
         root.destroy()
@@ -66,7 +66,7 @@ def client_a_main(args):
     last_activity = time.time()
 
     def receive_messages():
-        nonlocal last_activity, conn
+        nonlocal last_activity
         receiving_file = False
         file_buffer = b""
         file_name = ""
@@ -133,7 +133,7 @@ def client_a_main(args):
             conn.close()
 
     def send_message():
-        nonlocal last_activity, conn, session_key
+        nonlocal last_activity
         message = message_entry.get()
         if not message:
             return
@@ -170,9 +170,14 @@ def client_a_main(args):
             messagebox.showerror("Error", f"Encryption failed: {e}")
 
     def send_file():
-        nonlocal last_activity, conn, session_key
+        nonlocal last_activity
         file_path = filedialog.askopenfilename()
         if not file_path:
+            return
+        if os.path.getsize(file_path) > args.max_file_size * 1024 * 1024:
+            messagebox.showerror(
+                "Error", f"File exceeds {args.max_file_size} MB limit"
+            )
             return
         try:
             with open(file_path, "rb") as f:
@@ -197,7 +202,7 @@ def client_a_main(args):
             messagebox.showerror("Error", f"File transfer failed: {e}")
 
     def check_timeout():
-        nonlocal last_activity, conn
+        nonlocal last_activity
         if conn and time.time() - last_activity > args.timeout:
             signature = rsa_private.sign(
                 b"TERMINATE",
