@@ -32,8 +32,12 @@ def client_a_main(args):
     with open("client_a_public_key.pem", "wb") as f:
         f.write(rsa_public_bytes)
 
+    status = tk.Label(root, text="Starting Tor, please wait...")
+    status.pack(pady=5)
+    root.update()
     try:
         tor, onion, onion_hostname = setup_hidden_service(args.port, args.tor_impl == "stem")
+        status.config(text="Tor started")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to create hidden service: {e}")
         root.destroy()
@@ -58,6 +62,7 @@ def client_a_main(args):
     chat_display.pack(pady=10)
     message_entry = tk.Entry(root, width=50)
     message_entry.pack(pady=5)
+    message_entry.bind("<Return>", lambda _: send_message())
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -186,7 +191,7 @@ def client_a_main(args):
     def send_file():
         nonlocal last_activity
         file_path = filedialog.askopenfilename()
-        if not file_path:
+        if not file_path or not os.path.isfile(file_path):
             return
         if os.path.getsize(file_path) > args.max_file_size * 1024 * 1024:
             messagebox.showerror(

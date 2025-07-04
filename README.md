@@ -39,14 +39,14 @@ cd OnionChat
 ```
 
 
-The codebase is organized into multiple modules: `client_a.py`, `client_b.py`, and `chat_utils.py` provide the core functionality while `main.py` remains the entry point.
+The codebase is organized into multiple modules. `client_a_main.py` and `client_b_main.py` provide separate entry points for each client, while `client_a.py`, `client_b.py`, and `chat_utils.py` hold the shared logic.
 ## Usage 🎮
 
 ### Running Client A 🎤
 Client A hosts the chat session and generates credentials (onion address, session ID, public key, and QR code).
 
 ```bash
-python main.py client_a [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
+python client_a_main.py [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
 ```
 
 - **Options** ⚙️:
@@ -62,7 +62,7 @@ python main.py client_a [--port PORT] [--timeout SECONDS] [--padding BYTES] [--m
 Client B connects to Client A’s session using the shared credentials.
 
 ```bash
-python main.py client_b [<onion_hostname> <session_id> <public_key_file>] [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
+python client_b_main.py [<onion_hostname> <session_id> <public_key_file>] [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
 ```
 
 - **Options**: Same as Client A.
@@ -95,29 +95,38 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 ```
 
    ```
-2. **Compile the Binary**:
-   - Run the following command in the repository directory:
+2. **Compile the Binaries**:
+   - Build Client A:
      ```bash
-     pyinstaller --onefile main.py
+     pyinstaller --onefile client_a_main.py
      ```
-   - The binary will be created in the `dist/` directory (e.g., `dist/main` on Linux/macOS, `dist/main.exe` on Windows).
+     This creates `dist/client_a_main` (`client_a.exe` on Windows).
+   - Build Client B:
+     ```bash
+     pyinstaller --onefile client_b_main.py
+     ```
+     This creates `dist/client_b_main` (`client_b.exe` on Windows).
 3. **Platform-Specific Notes**:
    - **Linux** 🐧:
-     - Requires `python3-tk` for Tkinter (e.g., `sudo apt install python3-tk` on Debian/Ubuntu).
+     - Requires `python3-tk` for Tkinter (e.g., `sudo apt install python3-tk`).
      - Ensure X11 or another graphical environment is running.
-     - Test the binary: `./dist/main client_a`.
+     - Test Client A: `./dist/client_a_main`.
+     - Test Client B: `./dist/client_b_main`.
    - **Windows** 🪟:
      - Tkinter is included with Python; no additional setup needed.
-     - Run the binary: `dist\main.exe client_a`.
+     - Run Client A: `dist\client_a_main.exe`.
+     - Run Client B: `dist\client_b_main.exe`.
      - If compiling on another platform for Windows, use Wine or a Windows VM, or specify `--target-architecture x64`.
    - **macOS** 🍎:
      - Tkinter is included with Python; ensure a Python version from python.org or Homebrew for best compatibility.
-     - Run the binary: `./dist/main client_a`.
-     - macOS may require signing the binary for Gatekeeper: `codesign -f -s - dist/main`.
-4. **Distribute the Binary** 📤:
-   - Copy the binary (`dist/main` or `dist/main.exe`) to the target machine.
+     - Run Client A: `./dist/client_a_main`.
+     - Run Client B: `./dist/client_b_main`.
+     - macOS may require signing the binaries for Gatekeeper: `codesign -f -s - dist/client_a_main`.
+4. **Distribute the Binaries** 📤:
+   - Copy `dist/client_a_main*` and/or `dist/client_b_main*` to the target machine.
    - Ensure the target machine has a graphical environment and internet access for Tor connectivity.
    - No Python or dependencies need to be installed on the target machine.
+   - Test each executable on a clean system to confirm it launches without additional files.
 
 ### Troubleshooting Compilation ⚠️
 - **Large Binary Size**: The binary includes Python, Tkinter, `torpy`, `cryptography`, and other dependencies, resulting in ~60-80 MB. Use `--strip` to reduce size slightly, but expect large binaries due to OpenCV and Pillow.
@@ -127,11 +136,11 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 
 ## Example Workflow 🚀
 1. **Client A**:
-   - Run: `python main.py client_a` or `./dist/main client_a`
+   - Run: `python client_a_main.py` or `./dist/client_a_main`
    - GUI shows credentials and QR code. Enter a passphrase (e.g., "mysecret123"). 🔐
    - Copy clipboard data or display QR code for Client B.
 2. **Client B**:
-   - Run: `python main.py client_b` or `./dist/main client_b`
+   - Run: `python client_b_main.py` or `./dist/client_b_main`
    - In the setup GUI, click "Scan QR Code" (use webcam or select image) or enter credentials manually. 📷
    - Enter the passphrase ("mysecret123").
    - Click "Connect" to start chatting.
@@ -143,7 +152,10 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 - **Anonymity**: Tor hidden services hide IP addresses, with ephemeral `.onion` addresses. 🕵️
 - **QR Code Security**: Credentials encrypted with AES-256-GCM using a passphrase, displayed in-memory to avoid disk storage. 📷
 - **Ephemerality**: No message or key storage, ensuring no forensic recovery. ⏳
-- **Timeout and Kill Switch**: Prevents prolonged exposure and unauthorized reconnection. ⏰🛑
+  - **Timeout and Kill Switch**: Prevents prolonged exposure and unauthorized reconnection. ⏰🛑
+
+### Threat Model
+OnionChat assumes both clients control their local machines and network connections. It defends against passive network observers and interception of chat traffic. It does not protect against malware on either client, side-channel attacks, or compromise of the Tor network. If an attacker obtains the session QR data and passphrase before the session ends, they could impersonate a client. Keys are kept in memory only, but Python cannot guarantee perfect erasure.
 
 ## Limitations ⚠️
 - Requires a graphical environment for the GUI and QR code display.
