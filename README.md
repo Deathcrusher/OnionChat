@@ -37,6 +37,8 @@ git clone https://github.com/<your-username>/OnionChat.git
 cd OnionChat
 ```
 
+
+The codebase is organized into multiple modules: `client_a.py`, `client_b.py`, and `chat_utils.py` provide the core functionality while `main.py` remains the entry point.
 ## Usage 🎮
 
 ### Running Client A 🎤
@@ -87,6 +89,8 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
    ```bash
    git clone https://github.com/<your-username>/OnionChat.git
    cd OnionChat
+```
+
    ```
 2. **Compile the Binary**:
    - Run the following command in the repository directory:

@@ -1,0 +1,247 @@
+import os
+import threading
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding as asym_padding, x25519
+
+from chat_utils import (
+    derive_session_key,
+    encrypt_message,
+    decrypt_message,
+    encrypt_bytes,
+    decrypt_bytes,
+    scan_qr_code,
+)
+
+from torpy import TorClient
+
+
+def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, args):
+    root = tk.Tk()
+    root.title("Client B - Secure Chat")
+    root.geometry("600x400")
+
+    try:
+        with open(public_key_file, "rb") as f:
+            rsa_public_bytes = f.read()
+        rsa_public_key = serialization.load_pem_public_key(rsa_public_bytes)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to load public key: {e}")
+        root.destroy()
+        return
+
+    ecdh_private_key = x25519.X25519PrivateKey.generate()
+    ecdh_public_bytes = ecdh_private_key.public_key().public_bytes(
+        encoding=serialization.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    encrypted_key = rsa_public_key.encrypt(
+        ecdh_public_bytes,
+        asym_padding.OAEP(
+            mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None,
+        ),
+    )
+
+    try:
+        tor = TorClient()
+        conn = tor.connect(onion_hostname, 80)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to connect to Tor service: {e}")
+        root.destroy()
+        return
+
+    conn.send(session_id.encode())
+    conn.send(encrypted_key)
+
+    ecdh_peer_bytes = conn.recv(32)
+    try:
+        session_key = derive_session_key(ecdh_private_key, ecdh_peer_bytes)
+    except Exception as e:
+        messagebox.showerror("Error", f"Session key derivation failed: {e}")
+        conn.close()
+        tor.close()
+        root.destroy()
+        return
+
+    chat_display = tk.Text(root, height=15, width=60, state="disabled")
+    chat_display.pack(pady=10)
+    message_entry = tk.Entry(root, width=50)
+    message_entry.pack(pady=5)
+
+    def receive_messages():
+        receiving_file = False
+        file_buffer = b""
+        file_name = ""
+        file_size = 0
+        while True:
+            try:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                try:
+                    rsa_public_key.verify(
+                        data,
+                        b"TERMINATE",
+                        asym_padding.PSS(mgf=asym_padding.MGF1(hashes.SHA256()), salt_length=asym_padding.PSS.MAX_LENGTH),
+                    )
+                    messagebox.showinfo("Info", "Session terminated by Client A")
+                    conn.close()
+                    tor.close()
+                    root.destroy()
+                    return
+                except Exception:
+                    nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+                    if receiving_file:
+                        try:
+                            chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                            file_buffer += chunk
+                            if len(file_buffer) >= file_size:
+                                save_path = filedialog.asksaveasfilename(initialfile=file_name)
+                                if save_path:
+                                    with open(save_path, "wb") as f:
+                                        f.write(file_buffer[:file_size])
+                                chat_display.config(state="normal")
+                                chat_display.insert(tk.END, f"Received file: {file_name}\n")
+                                chat_display.config(state="disabled")
+                                chat_display.see(tk.END)
+                                receiving_file = False
+                                file_buffer = b""
+                                file_name = ""
+                                file_size = 0
+                            continue
+                        except Exception as e:
+                            messagebox.showerror("Error", f"File transfer failed: {e}")
+                            receiving_file = False
+                            file_buffer = b""
+                            file_name = ""
+                            file_size = 0
+                            continue
+                    try:
+                        message = decrypt_message(nonce, ciphertext, tag, session_key)
+                        if message.startswith("FILE_TRANSFER_START:"):
+                            try:
+                                _, fname, fsize = message.split(":", 2)
+                                file_name = os.path.basename(fname)
+                                file_size = int(fsize)
+                                file_buffer = b""
+                                receiving_file = True
+                            except Exception as e:
+                                messagebox.showerror("Error", f"Invalid file header: {e}")
+                            continue
+                        elif message == "FILE_TRANSFER_END":
+                            receiving_file = False
+                            file_buffer = b""
+                            file_name = ""
+                            file_size = 0
+                            continue
+                        chat_display.config(state="normal")
+                        chat_display.insert(tk.END, f"Client A: {message}\n")
+                        chat_display.config(state="disabled")
+                        chat_display.see(tk.END)
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Decryption failed: {e}")
+            except Exception:
+                break
+        conn.close()
+        tor.close()
+        root.destroy()
+
+    def send_message():
+        message = message_entry.get()
+        if not message:
+            return
+        try:
+            nonce, ciphertext, tag = encrypt_message(message, session_key, args.padding)
+            conn.send(nonce + tag + ciphertext)
+            chat_display.config(state="normal")
+            chat_display.insert(tk.END, f"You: {message}\n")
+            chat_display.config(state="disabled")
+            chat_display.see(tk.END)
+            message_entry.delete(0, tk.END)
+        except Exception as e:
+            messagebox.showerror("Error", f"Sending message failed: {e}")
+
+    def send_file():
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
+        try:
+            with open(file_path, "rb") as f:
+                data = f.read()
+            filename = os.path.basename(file_path)
+            header = f"FILE_TRANSFER_START:{filename}:{len(data)}"
+            nonce, ciphertext, tag = encrypt_message(header, session_key, args.padding)
+            conn.send(nonce + tag + ciphertext)
+            chunk_size = 2048
+            for i in range(0, len(data), chunk_size):
+                chunk = data[i : i + chunk_size]
+                n, c, t = encrypt_bytes(chunk, session_key)
+                conn.send(n + t + c)
+            nonce, ciphertext, tag = encrypt_message("FILE_TRANSFER_END", session_key, args.padding)
+            conn.send(nonce + tag + ciphertext)
+            chat_display.config(state="normal")
+            chat_display.insert(tk.END, f"Sent file: {filename}\n")
+            chat_display.config(state="disabled")
+            chat_display.see(tk.END)
+        except Exception as e:
+            messagebox.showerror("Error", f"File transfer failed: {e}")
+
+    tk.Button(root, text="Send", command=send_message).pack(pady=5)
+    tk.Button(root, text="Send File", command=send_file).pack(pady=5)
+    threading.Thread(target=receive_messages, daemon=True).start()
+    root.mainloop()
+
+
+def client_b_setup(args):
+    root = tk.Tk()
+    root.title("Client B Setup")
+    root.geometry("400x300")
+
+    tk.Label(root, text="Onion Address:").pack(pady=5)
+    onion_entry = tk.Entry(root, width=50)
+    onion_entry.insert(0, args.onion if hasattr(args, "onion") else "")
+    onion_entry.pack(pady=5)
+
+    tk.Label(root, text="Session ID:").pack(pady=5)
+    session_entry = tk.Entry(root, width=50)
+    session_entry.insert(0, args.session if hasattr(args, "session") else "")
+    session_entry.pack(pady=5)
+
+    tk.Label(root, text="Public Key File:").pack(pady=5)
+    key_entry = tk.Entry(root, width=50)
+    key_entry.insert(0, args.key if hasattr(args, "key") else "")
+    key_entry.pack(pady=5)
+    tk.Button(root, text="Browse", command=lambda: key_entry.insert(0, filedialog.askopenfilename())).pack(pady=5)
+
+    def scan_and_fill():
+        onion_hostname, session_id, public_key = scan_qr_code(root)
+        if onion_hostname and session_id and public_key:
+            onion_entry.delete(0, tk.END)
+            onion_entry.insert(0, onion_hostname)
+            session_entry.delete(0, tk.END)
+            session_entry.insert(0, session_id)
+            with open("temp_public_key.pem", "wb") as f:
+                f.write(public_key)
+            key_entry.delete(0, tk.END)
+            key_entry.insert(0, "temp_public_key.pem")
+        else:
+            messagebox.showerror("Error", "Failed to scan QR code")
+
+    tk.Button(root, text="Scan QR Code", command=scan_and_fill).pack(pady=5)
+
+    def start_client_b():
+        onion = onion_entry.get()
+        session = session_entry.get()
+        key_file = key_entry.get()
+        if not (onion and session and key_file):
+            messagebox.showerror("Error", "All fields are required")
+            return
+        root.destroy()
+        client_b_main(onion, session, key_file, args)
+
+    tk.Button(root, text="Connect", command=start_client_b).pack(pady=10)
+    root.mainloop()
