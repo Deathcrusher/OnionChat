@@ -5,13 +5,14 @@ OnionChat is a secure, anonymous, one-time chat messenger built with Python. It 
 ## Features 🌟
 
 - **End-to-End Encryption** 🔐: Messages are encrypted with AES-256-GCM, with keys exchanged via RSA-4096 and ECDH for forward secrecy.
-- **Anonymity** 🕵️: Uses Tor hidden services via `torpy` (no external Tor installation required) to hide IP addresses.
+- **Anonymity** 🕵️: Uses Tor hidden services (via `torpy` or the official Tor client with `stem`) to hide IP addresses.
 - **One-Time Sessions** ⏳: Ephemeral sessions with no message storage and reconnection prevention.
 - **Kill Switch** 🛑: Client A can terminate the session with a signed message, ensuring control.
 - **QR Code Sharing** 📷: Encrypted QR codes (with passphrase) for secure sharing of onion address, session ID, and public key.
 - **GUI Interface** 🖥️: Tkinter-based GUI for intuitive chat and setup, with integrated QR code scanning and display.
 - **Message Padding** 📏: Fixed-length messages to prevent metadata leakage.
 - **Secure File Transfer** 📁: Transfer files over the encrypted session.
+- **File Size Limit** 📦: Configurable maximum file size (default 100 MB) to avoid abuse.
 - **Session Timeout** ⏰: Automatic termination after configurable inactivity period.
 - **Cross-Platform** 🌐: Runs on Linux, Windows, and macOS with a graphical environment.
 
@@ -45,13 +46,15 @@ The codebase is organized into multiple modules: `client_a.py`, `client_b.py`, a
 Client A hosts the chat session and generates credentials (onion address, session ID, public key, and QR code).
 
 ```bash
-python main.py client_a [--port PORT] [--timeout SECONDS] [--padding BYTES]
+python main.py client_a [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
 ```
 
 - **Options** ⚙️:
   - `--port`: Port for the Tor hidden service (default: 12345).
   - `--timeout`: Session inactivity timeout in seconds (default: 600).
   - `--padding`: Message padding length in bytes (default: 1024).
+  - `--max-file-size`: Maximum file size in megabytes for transfer (default: 100).
+  - `--tor-impl`: Use `torpy` (default) or `stem` + Tor for networking.
 - **Output**: A GUI window displays the onion address, session ID, public key file (`client_a_public_key.pem`), and QR code. Enter a passphrase to encrypt the QR code data. Click "Copy QR Data" to copy the encrypted credentials to the clipboard. 📋
 - **Share**: Share the QR code (displayed in GUI) or clipboard data with Client B via a secure channel (e.g., in-person scan, encrypted messaging). 🔐
 
@@ -59,7 +62,7 @@ python main.py client_a [--port PORT] [--timeout SECONDS] [--padding BYTES]
 Client B connects to Client A’s session using the shared credentials.
 
 ```bash
-python main.py client_b [<onion_hostname> <session_id> <public_key_file>] [--port PORT] [--timeout SECONDS] [--padding BYTES]
+python main.py client_b [<onion_hostname> <session_id> <public_key_file>] [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
 ```
 
 - **Options**: Same as Client A.

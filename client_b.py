@@ -169,6 +169,11 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         file_path = filedialog.askopenfilename()
         if not file_path:
             return
+        if os.path.getsize(file_path) > args.max_file_size * 1024 * 1024:
+            messagebox.showerror(
+                "Error", f"File exceeds {args.max_file_size} MB limit"
+            )
+            return
         try:
             with open(file_path, "rb") as f:
                 data = f.read()
@@ -193,7 +198,16 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
     tk.Button(root, text="Send File", command=send_file).pack(pady=5)
     threading.Thread(target=receive_messages, daemon=True).start()
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        conn.close()
+        tor.close()
+        if public_key_file == "temp_public_key.pem" and os.path.exists(public_key_file):
+            try:
+                os.remove(public_key_file)
+            except Exception:
+                pass
 
 
 def client_b_setup(args):
