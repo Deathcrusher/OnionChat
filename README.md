@@ -11,6 +11,7 @@ OnionChat is a secure, anonymous, one-time chat messenger built with Python. It 
 - **QR Code Sharing** 📷: Encrypted QR codes (with passphrase) for secure sharing of onion address, session ID, and public key.
 - **GUI Interface** 🖥️: Tkinter-based GUI for intuitive chat and setup, with integrated QR code scanning and display.
 - **Message Padding** 📏: Fixed-length messages to prevent metadata leakage.
+- **Secure File Transfer** 📁: Transfer files over the encrypted session.
 - **Session Timeout** ⏰: Automatic termination after configurable inactivity period.
 - **Cross-Platform** 🌐: Runs on Linux, Windows, and macOS with a graphical environment.
 
@@ -66,6 +67,7 @@ python main.py client_b [<onion_hostname> <session_id> <public_key_file>] [--por
 
 ### Chatting 💬
 - **Send Messages**: Type in the input field and click "Send" (or press Enter).
+- **Send Files**: Click "Send File" to securely transfer a selected file.
 - **Client A Termination**: Click "Exit" or wait for the timeout to end the session, sending a signed termination message. 🛑
 - **Client B**: GUI closes upon termination, preventing reconnection.
 
