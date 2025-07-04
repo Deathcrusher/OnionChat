@@ -113,6 +113,19 @@ def decrypt_message(nonce, ciphertext, tag, key):
     length = int.from_bytes(padded_message[:4], 'big')
     return padded_message[4:4+length].decode()
 
+# Encrypt/decrypt raw bytes for file transfer
+def encrypt_bytes(data, key):
+    nonce = secrets.token_bytes(12)
+    cipher = Cipher(algorithms.AES(key), modes.GCM(nonce))
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(data) + encryptor.finalize()
+    return nonce, ciphertext, encryptor.tag
+
+def decrypt_bytes(nonce, ciphertext, tag, key):
+    cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag))
+    decryptor = cipher.decryptor()
+    return decryptor.update(ciphertext) + decryptor.finalize()
+
 # Encrypt/decrypt QR code data
 def encrypt_qr_data(onion_hostname, session_id, rsa_public_key_bytes, passphrase):
     salt = secrets.token_bytes(16)
@@ -263,6 +276,10 @@ def client_a_main():
 
     def receive_messages():
         nonlocal last_activity, conn
+        receiving_file = False
+        file_buffer = b''
+        file_name = ''
+        file_size = 0
         while True:
             try:
                 data = conn.recv(4096)
@@ -270,8 +287,49 @@ def client_a_main():
                 if not data:
                     break
                 nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+                if receiving_file:
+                    try:
+                        chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                        file_buffer += chunk
+                        if len(file_buffer) >= file_size:
+                            save_path = filedialog.asksaveasfilename(initialfile=file_name)
+                            if save_path:
+                                with open(save_path, 'wb') as f:
+                                    f.write(file_buffer[:file_size])
+                            chat_display.config(state='normal')
+                            chat_display.insert(tk.END, f"Received file: {file_name}\n")
+                            chat_display.config(state='disabled')
+                            chat_display.see(tk.END)
+                            receiving_file = False
+                            file_buffer = b''
+                            file_name = ''
+                            file_size = 0
+                        continue
+                    except Exception as e:
+                        messagebox.showerror("Error", f"File transfer failed: {e}")
+                        receiving_file = False
+                        file_buffer = b''
+                        file_name = ''
+                        file_size = 0
+                        continue
                 try:
                     message = decrypt_message(nonce, ciphertext, tag, session_key)
+                    if message.startswith("FILE_TRANSFER_START:"):
+                        try:
+                            _, fname, fsize = message.split(":", 2)
+                            file_name = os.path.basename(fname)
+                            file_size = int(fsize)
+                            file_buffer = b''
+                            receiving_file = True
+                        except Exception as e:
+                            messagebox.showerror("Error", f"Invalid file header: {e}")
+                        continue
+                    elif message == "FILE_TRANSFER_END":
+                        receiving_file = False
+                        file_buffer = b''
+                        file_name = ''
+                        file_size = 0
+                        continue
                     chat_display.config(state='normal')
                     chat_display.insert(tk.END, f"Client B: {message}\n")
                     chat_display.config(state='disabled')
@@ -316,6 +374,33 @@ def client_a_main():
         except Exception as e:
             messagebox.showerror("Error", f"Encryption failed: {e}")
 
+    def send_file():
+        nonlocal last_activity, conn, session_key
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            filename = os.path.basename(file_path)
+            header = f"FILE_TRANSFER_START:{filename}:{len(data)}"
+            nonce, ciphertext, tag = encrypt_message(header, session_key)
+            conn.send(nonce + tag + ciphertext)
+            chunk_size = 2048
+            for i in range(0, len(data), chunk_size):
+                chunk = data[i:i+chunk_size]
+                n, c, t = encrypt_bytes(chunk, session_key)
+                conn.send(n + t + c)
+            nonce, ciphertext, tag = encrypt_message("FILE_TRANSFER_END", session_key)
+            conn.send(nonce + tag + ciphertext)
+            chat_display.config(state='normal')
+            chat_display.insert(tk.END, f"Sent file: {filename}\n")
+            chat_display.config(state='disabled')
+            chat_display.see(tk.END)
+            last_activity = time.time()
+        except Exception as e:
+            messagebox.showerror("Error", f"File transfer failed: {e}")
+
     def check_timeout():
         nonlocal last_activity, conn
         if conn and time.time() - last_activity > args.timeout:
@@ -337,6 +422,7 @@ def client_a_main():
         root.after(1000, check_timeout)
 
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
+    tk.Button(root, text="Send File", command=send_file).pack(pady=5)
     tk.Button(root, text="Exit", command=lambda: send_message('exit')).pack(pady=5)
 
     try:
@@ -432,6 +518,10 @@ def client_b_main(onion_hostname, session_id, public_key_file):
     message_entry.pack(pady=5)
 
     def receive_messages():
+        receiving_file = False
+        file_buffer = b''
+        file_name = ''
+        file_size = 0
         while True:
             try:
                 data = conn.recv(4096)
@@ -448,17 +538,58 @@ def client_b_main(onion_hostname, session_id, public_key_file):
                     tor.close()
                     root.destroy()
                     return
-                except:
+                except Exception:
                     nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+                    if receiving_file:
+                        try:
+                            chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                            file_buffer += chunk
+                            if len(file_buffer) >= file_size:
+                                save_path = filedialog.asksaveasfilename(initialfile=file_name)
+                                if save_path:
+                                    with open(save_path, 'wb') as f:
+                                        f.write(file_buffer[:file_size])
+                                chat_display.config(state='normal')
+                                chat_display.insert(tk.END, f"Received file: {file_name}\n")
+                                chat_display.config(state='disabled')
+                                chat_display.see(tk.END)
+                                receiving_file = False
+                                file_buffer = b''
+                                file_name = ''
+                                file_size = 0
+                            continue
+                        except Exception as e:
+                            messagebox.showerror("Error", f"File transfer failed: {e}")
+                            receiving_file = False
+                            file_buffer = b''
+                            file_name = ''
+                            file_size = 0
+                            continue
                     try:
                         message = decrypt_message(nonce, ciphertext, tag, session_key)
+                        if message.startswith("FILE_TRANSFER_START:"):
+                            try:
+                                _, fname, fsize = message.split(":", 2)
+                                file_name = os.path.basename(fname)
+                                file_size = int(fsize)
+                                file_buffer = b''
+                                receiving_file = True
+                            except Exception as e:
+                                messagebox.showerror("Error", f"Invalid file header: {e}")
+                            continue
+                        elif message == "FILE_TRANSFER_END":
+                            receiving_file = False
+                            file_buffer = b''
+                            file_name = ''
+                            file_size = 0
+                            continue
                         chat_display.config(state='normal')
                         chat_display.insert(tk.END, f"Client A: {message}\n")
                         chat_display.config(state='disabled')
                         chat_display.see(tk.END)
                     except Exception as e:
                         messagebox.showerror("Error", f"Decryption failed: {e}")
-            except:
+            except Exception:
                 break
         conn.close()
         tor.close()
@@ -479,7 +610,33 @@ def client_b_main(onion_hostname, session_id, public_key_file):
         except Exception as e:
             messagebox.showerror("Error", f"Sending message failed: {e}")
 
+    def send_file():
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            filename = os.path.basename(file_path)
+            header = f"FILE_TRANSFER_START:{filename}:{len(data)}"
+            nonce, ciphertext, tag = encrypt_message(header, session_key)
+            conn.send(nonce + tag + ciphertext)
+            chunk_size = 2048
+            for i in range(0, len(data), chunk_size):
+                chunk = data[i:i+chunk_size]
+                n, c, t = encrypt_bytes(chunk, session_key)
+                conn.send(n + t + c)
+            nonce, ciphertext, tag = encrypt_message("FILE_TRANSFER_END", session_key)
+            conn.send(nonce + tag + ciphertext)
+            chat_display.config(state='normal')
+            chat_display.insert(tk.END, f"Sent file: {filename}\n")
+            chat_display.config(state='disabled')
+            chat_display.see(tk.END)
+        except Exception as e:
+            messagebox.showerror("Error", f"File transfer failed: {e}")
+
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
+    tk.Button(root, text="Send File", command=send_file).pack(pady=5)
     threading.Thread(target=receive_messages, daemon=True).start()
     root.mainloop()
 
