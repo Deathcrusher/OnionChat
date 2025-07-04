@@ -38,7 +38,7 @@ except Exception:  # pragma: no cover - optional dependency
 # Wipe sensitive data from memory
 # Best-effort; due to Python memory management this cannot guarantee removal.
 def secure_wipe(data):
-    """Attempt to overwrite and delete sensitive bytes."""
+    """Best-effort overwrite of sensitive data."""
     if data is None:
         return
     try:
@@ -46,6 +46,9 @@ def secure_wipe(data):
             ba = bytearray(data)
         else:
             ba = data
+        rnd = secrets.token_bytes(len(ba))
+        for i in range(len(ba)):
+            ba[i] = rnd[i]
         for i in range(len(ba)):
             ba[i] = 0
     except Exception:

@@ -50,9 +50,13 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         ),
     )
 
+    status = tk.Label(root, text="Connecting to Tor service...")
+    status.pack(pady=5)
+    root.update()
     try:
         tor = TorClient()
         conn = tor.connect(onion_hostname, 80)
+        status.config(text="Connected")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to connect to Tor service: {e}")
         secure_wipe(ecdh_private_key.private_bytes(
@@ -85,6 +89,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     chat_display.pack(pady=10)
     message_entry = tk.Entry(root, width=50)
     message_entry.pack(pady=5)
+    message_entry.bind("<Return>", lambda _: send_message())
 
     def receive_messages():
         receiving_file = False
@@ -187,7 +192,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
 
     def send_file():
         file_path = filedialog.askopenfilename()
-        if not file_path:
+        if not file_path or not os.path.isfile(file_path):
             return
         if os.path.getsize(file_path) > args.max_file_size * 1024 * 1024:
             messagebox.showerror(
