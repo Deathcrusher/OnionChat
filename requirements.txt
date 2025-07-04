@@ -1,0 +1,7 @@
+torpy
+cryptography
+qrcode
+pyzbar
+opencv-python
+Pillow
+pyperclip
