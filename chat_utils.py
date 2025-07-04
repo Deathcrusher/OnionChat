@@ -1,4 +1,4 @@
-# Utility functions for OnionChat
+"""Shared utilities for OnionChat including crypto operations, QR code handling, and Tor hidden service setup."""
 import os
 import secrets
 import tkinter as tk
@@ -33,6 +33,23 @@ try:
     from stem.control import Controller
 except Exception:  # pragma: no cover - optional dependency
     Controller = None
+
+
+# Wipe sensitive data from memory
+# Best-effort; due to Python memory management this cannot guarantee removal.
+def secure_wipe(data):
+    """Attempt to overwrite and delete sensitive bytes."""
+    if data is None:
+        return
+    try:
+        if isinstance(data, bytes):
+            ba = bytearray(data)
+        else:
+            ba = data
+        for i in range(len(ba)):
+            ba[i] = 0
+    except Exception:
+        pass
 
 
 def generate_keys():
@@ -82,6 +99,7 @@ def encrypt_message(message: str, key: bytes, padding_len: int):
 
 
 def decrypt_message(nonce: bytes, ct: bytes, tag: bytes, key: bytes):
+    """Decrypt a padded message encrypted by :func:`encrypt_message`."""
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag))
     dec = cipher.decryptor()
     padded = dec.update(ct) + dec.finalize()
@@ -90,6 +108,7 @@ def decrypt_message(nonce: bytes, ct: bytes, tag: bytes, key: bytes):
 
 
 def encrypt_bytes(data: bytes, key: bytes):
+    """Encrypt arbitrary bytes with AES-256-GCM."""
     nonce = secrets.token_bytes(12)
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce))
     enc = cipher.encryptor()
@@ -98,12 +117,14 @@ def encrypt_bytes(data: bytes, key: bytes):
 
 
 def decrypt_bytes(nonce: bytes, ct: bytes, tag: bytes, key: bytes) -> bytes:
+    """Decrypt bytes encrypted with :func:`encrypt_bytes`."""
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag))
     dec = cipher.decryptor()
     return dec.update(ct) + dec.finalize()
 
 
 def encrypt_qr_data(onion: str, session_id: str, rsa_bytes: bytes, passphrase: str):
+    """Encrypt connection info for QR code transfer."""
     salt = secrets.token_bytes(16)
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
     key = kdf.derive(passphrase.encode())
@@ -116,6 +137,7 @@ def encrypt_qr_data(onion: str, session_id: str, rsa_bytes: bytes, passphrase: s
 
 
 def decrypt_qr_data(salt: bytes, nonce: bytes, ct: bytes, tag: bytes, passphrase: str):
+    """Decrypt QR code data using the provided passphrase."""
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
     key = kdf.derive(passphrase.encode())
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag))
@@ -126,6 +148,7 @@ def decrypt_qr_data(salt: bytes, nonce: bytes, ct: bytes, tag: bytes, passphrase
 
 
 def generate_qr_code(onion: str, session_id: str, rsa_bytes: bytes, root: tk.Tk) -> str:
+    """Generate and optionally display a QR code containing encrypted connection info."""
     passphrase = simpledialog.askstring("Input", "Enter passphrase for QR code encryption", parent=root)
     if not passphrase:
         raise ValueError("Passphrase required")
@@ -146,6 +169,7 @@ def generate_qr_code(onion: str, session_id: str, rsa_bytes: bytes, root: tk.Tk)
 
 
 def scan_qr_code(root: tk.Tk):
+    """Scan a QR code from webcam or image and decrypt its payload."""
     if cv2 is None:
         return None, None, None
     cap = cv2.VideoCapture(0)
@@ -191,7 +215,7 @@ def scan_qr_code(root: tk.Tk):
 
 
 def setup_hidden_service(port: int, use_stem: bool = False):
-    """Create a Tor hidden service using torpy or stem."""
+    """Create a Tor hidden service using torpy or stem with retries."""
     use_stem = use_stem or os.environ.get("ONIONCHAT_USE_STEM") == "1"
     if use_stem and Controller is not None:
         try:

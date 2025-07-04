@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Entry point and CLI for OnionChat."""
 import argparse
 import subprocess
 import sys

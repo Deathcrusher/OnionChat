@@ -1,3 +1,4 @@
+"""GUI and logic for hosting an OnionChat session (Client A)."""
 import os
 import socket
 import threading
@@ -5,7 +6,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
-from cryptography.hazmat.primitives import hashes, padding as asym_padding
+from cryptography.hazmat.primitives import hashes, padding as asym_padding, serialization
 from cryptography.hazmat.primitives import constant_time
 
 from chat_utils import (
@@ -17,10 +18,12 @@ from chat_utils import (
     decrypt_bytes,
     generate_qr_code,
     setup_hidden_service,
+    secure_wipe,
 )
 
 
 def client_a_main(args):
+    """Launch the GUI server and wait for Client B to connect."""
     root = tk.Tk()
     root.title("Client A - Secure Chat")
     root.geometry("600x400")
@@ -151,6 +154,17 @@ def client_a_main(args):
             server.close()
             onion.close()
             tor.close()
+            secure_wipe(session_key)
+            secure_wipe(ecdh_private.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption(),
+            ))
+            secure_wipe(rsa_private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ))
             try:
                 os.remove("client_a_public_key.pem")
             except Exception:
@@ -217,6 +231,17 @@ def client_a_main(args):
             server.close()
             onion.close()
             tor.close()
+            secure_wipe(session_key)
+            secure_wipe(ecdh_private.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption(),
+            ))
+            secure_wipe(rsa_private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ))
             try:
                 os.remove("client_a_public_key.pem")
             except Exception:
@@ -238,6 +263,17 @@ def client_a_main(args):
             server.close()
             onion.close()
             tor.close()
+            secure_wipe(session_key)
+            secure_wipe(ecdh_private.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption(),
+            ))
+            secure_wipe(rsa_private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ))
             root.destroy()
             return
 
@@ -254,6 +290,17 @@ def client_a_main(args):
             server.close()
             onion.close()
             tor.close()
+            secure_wipe(session_key)
+            secure_wipe(ecdh_private.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption(),
+            ))
+            secure_wipe(rsa_private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ))
             root.destroy()
             return
 
@@ -265,6 +312,17 @@ def client_a_main(args):
         server.close()
         onion.close()
         tor.close()
+        secure_wipe(session_key)
+        secure_wipe(ecdh_private.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption(),
+        ))
+        secure_wipe(rsa_private.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.TraditionalOpenSSL,
+            serialization.NoEncryption(),
+        ))
         root.destroy()
         return
 

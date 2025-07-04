@@ -1,3 +1,4 @@
+"""GUI for connecting to an OnionChat session as Client B."""
 import os
 import threading
 import tkinter as tk
@@ -13,12 +14,14 @@ from chat_utils import (
     encrypt_bytes,
     decrypt_bytes,
     scan_qr_code,
+    secure_wipe,
 )
 
 from torpy import TorClient
 
 
 def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, args):
+    """Connect to Client A using the supplied credentials and start the chat."""
     root = tk.Tk()
     root.title("Client B - Secure Chat")
     root.geometry("600x400")
@@ -29,6 +32,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         rsa_public_key = serialization.load_pem_public_key(rsa_public_bytes)
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load public key: {e}")
+        secure_wipe(rsa_public_bytes if 'rsa_public_bytes' in locals() else b'')
         root.destroy()
         return
 
@@ -51,6 +55,11 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         conn = tor.connect(onion_hostname, 80)
     except Exception as e:
         messagebox.showerror("Error", f"Failed to connect to Tor service: {e}")
+        secure_wipe(ecdh_private_key.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption(),
+        ))
         root.destroy()
         return
 
@@ -64,6 +73,11 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         messagebox.showerror("Error", f"Session key derivation failed: {e}")
         conn.close()
         tor.close()
+        secure_wipe(ecdh_private_key.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption(),
+        ))
         root.destroy()
         return
 
@@ -91,6 +105,12 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                     messagebox.showinfo("Info", "Session terminated by Client A")
                     conn.close()
                     tor.close()
+                    secure_wipe(session_key)
+                    secure_wipe(ecdh_private_key.private_bytes(
+                        serialization.Encoding.Raw,
+                        serialization.PrivateFormat.Raw,
+                        serialization.NoEncryption(),
+                    ))
                     root.destroy()
                     return
                 except Exception:
@@ -203,6 +223,12 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     finally:
         conn.close()
         tor.close()
+        secure_wipe(session_key)
+        secure_wipe(ecdh_private_key.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption(),
+        ))
         if public_key_file == "temp_public_key.pem" and os.path.exists(public_key_file):
             try:
                 os.remove(public_key_file)
@@ -211,6 +237,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
 
 
 def client_b_setup(args):
+    """Prompt the user for connection credentials or scan a QR code."""
     root = tk.Tk()
     root.title("Client B Setup")
     root.geometry("400x300")
