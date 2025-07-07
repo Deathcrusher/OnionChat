@@ -179,7 +179,8 @@ Contributions are welcome! Please follow these steps:
 5. Open a pull request. 📬
 
 ### Development Setup 🛠️
-- Install dependencies: `pip install -r requirements.txt`.
+- Install dependencies with `pip install -r requirements.txt`.
+- Run the unit tests with `pytest -q`.
 - Test changes on Linux, Windows, or macOS with a graphical environment.
 - Ensure Tor network connectivity for testing.
 
