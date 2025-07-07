@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding, x25519
 
-from chat_utils import (
+from onionchat.chat_utils import (
     generate_keys,
     derive_session_key,
     encrypt_message,
@@ -37,6 +37,9 @@ def test_full_exchange(tmp_path):
     results = {}
     file_payload = b"secret-data"
 
+    def send_packet(sock, payload):
+        sock.sendall(len(payload).to_bytes(4, "big") + payload)
+
     def recv_exact(sock, n):
         data = b""
         while len(data) < n:
@@ -45,6 +48,10 @@ def test_full_exchange(tmp_path):
                 raise RuntimeError("connection closed")
             data += chunk
         return data
+
+    def recv_packet(sock):
+        length = int.from_bytes(recv_exact(sock, 4), "big")
+        return recv_exact(sock, length)
 
     def server():
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -64,26 +71,26 @@ def test_full_exchange(tmp_path):
             ),
         )
         session_key = derive_session_key(ecdh_private, peer_ecdh_bytes)
-        conn.send(ecdh_public_bytes)
+        conn.sendall(ecdh_public_bytes)
 
         n, ct, tag = encrypt_message("hello_b", session_key, 1024)
-        conn.send(n + tag + ct)
+        send_packet(conn, n + tag + ct)
 
-        data = recv_exact(conn, 1052)
+        data = recv_packet(conn)
         n, tag, ct = data[:12], data[12:28], data[28:]
         results["msg_from_b"] = decrypt_message(n, ct, tag, session_key)
 
-        data = recv_exact(conn, 1052)
+        data = recv_packet(conn)
         n, tag, ct = data[:12], data[12:28], data[28:]
         header = decrypt_message(n, ct, tag, session_key)
         assert header.startswith("FILE_TRANSFER_START:")
         _, fname, fsize = header.split(":", 2)
         fsize = int(fsize)
         recv_bytes = b""
-        chunk = recv_exact(conn, 12 + 16 + fsize)
+        chunk = recv_packet(conn)
         n, tag, ct = chunk[:12], chunk[12:28], chunk[28:]
         recv_bytes += decrypt_bytes(n, ct, tag, session_key)
-        end = recv_exact(conn, 1052)
+        end = recv_packet(conn)
         n, tag, ct = end[:12], end[12:28], end[28:]
         assert decrypt_message(n, ct, tag, session_key) == "FILE_TRANSFER_END"
         results["file_from_b"] = recv_bytes[:fsize]
@@ -96,7 +103,7 @@ def test_full_exchange(tmp_path):
             ),
             hashes.SHA256(),
         )
-        conn.sendall(sig)
+        send_packet(conn, sig)
         conn.close()
         srv.close()
 
@@ -117,28 +124,28 @@ def test_full_exchange(tmp_path):
                 label=None,
             ),
         )
-        sock.send(session_id.encode())
+        sock.sendall(session_id.encode())
         time.sleep(0.05)
-        sock.send(enc_key)
+        sock.sendall(enc_key)
         peer = recv_exact(sock, 32)
         session_key = derive_session_key(ecdh_priv, peer)
 
-        data = recv_exact(sock, 1052)
+        data = recv_packet(sock)
         n, tag, ct = data[:12], data[12:28], data[28:]
         results["msg_from_a"] = decrypt_message(n, ct, tag, session_key)
 
         n, ct, tag = encrypt_message("hello_a", session_key, 1024)
-        sock.send(n + tag + ct)
+        send_packet(sock, n + tag + ct)
 
         header = f"FILE_TRANSFER_START:test.txt:{len(file_payload)}"
         n, ct, tag = encrypt_message(header, session_key, 1024)
-        sock.send(n + tag + ct)
+        send_packet(sock, n + tag + ct)
         n_data, c_data, t_data = encrypt_bytes(file_payload, session_key)
-        sock.send(n_data + t_data + c_data)
+        send_packet(sock, n_data + t_data + c_data)
         n, ct, tag = encrypt_message("FILE_TRANSFER_END", session_key, 1024)
-        sock.send(n + tag + ct)
+        send_packet(sock, n + tag + ct)
 
-        sig = recv_exact(sock, 512)
+        sig = recv_packet(sock)
         rsa_public_key.verify(
             sig,
             b"TERMINATE",
