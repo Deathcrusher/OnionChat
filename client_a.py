@@ -141,41 +141,53 @@ def client_a_main(args):
         if conn:
             conn.close()
 
+    def terminate_session():
+        """Send the termination signature and cleanup resources."""
+        signature = rsa_private.sign(
+            b"TERMINATE",
+            asym_padding.PSS(
+                mgf=asym_padding.MGF1(hashes.SHA256()),
+                salt_length=asym_padding.PSS.MAX_LENGTH,
+            ),
+            hashes.SHA256(),
+        )
+        try:
+            conn.send(signature)
+        except Exception:
+            pass
+        conn.close()
+        server.close()
+        onion.close()
+        tor.close()
+        secure_wipe(session_key)
+        secure_wipe(
+            ecdh_private.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption(),
+            )
+        )
+        secure_wipe(
+            rsa_private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            )
+        )
+        try:
+            os.remove("client_a_public_key.pem")
+        except Exception:
+            pass
+        root.destroy()
+        return
+
     def send_message():
         nonlocal last_activity
         message = message_entry.get()
         if not message:
             return
         if message.lower() == "exit":
-            signature = rsa_private.sign(
-                b"TERMINATE",
-                asym_padding.PSS(
-                    mgf=asym_padding.MGF1(hashes.SHA256()),
-                    salt_length=asym_padding.PSS.MAX_LENGTH,
-                ),
-                hashes.SHA256(),
-            )
-            conn.send(signature)
-            conn.close()
-            server.close()
-            onion.close()
-            tor.close()
-            secure_wipe(session_key)
-            secure_wipe(ecdh_private.private_bytes(
-                serialization.Encoding.Raw,
-                serialization.PrivateFormat.Raw,
-                serialization.NoEncryption(),
-            ))
-            secure_wipe(rsa_private.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.TraditionalOpenSSL,
-                serialization.NoEncryption(),
-            ))
-            try:
-                os.remove("client_a_public_key.pem")
-            except Exception:
-                pass
-            root.destroy()
+            terminate_session()
             return
         try:
             nonce, ciphertext, tag = encrypt_message(message, session_key, args.padding)
@@ -257,7 +269,7 @@ def client_a_main(args):
 
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
     tk.Button(root, text="Send File", command=send_file).pack(pady=5)
-    tk.Button(root, text="Exit", command=lambda: send_message()).pack(pady=5)
+    tk.Button(root, text="Exit", command=terminate_session).pack(pady=5)
 
     try:
         conn, _ = server.accept()
