@@ -76,7 +76,7 @@ def generate_keys():
     ecdh_private = x25519.X25519PrivateKey.generate()
     ecdh_public = ecdh_private.public_key()
     ecdh_bytes = ecdh_public.public_bytes(
-        encoding=serialization.Raw,
+        encoding=serialization.Encoding.Raw,
         format=serialization.PublicFormat.Raw,
     )
     return rsa_private, rsa_public, rsa_bytes, ecdh_private, ecdh_bytes
