@@ -262,7 +262,13 @@ def client_b_setup(args):
     key_entry = tk.Entry(root, width=50)
     key_entry.insert(0, args.key if hasattr(args, "key") else "")
     key_entry.pack(pady=5)
-    tk.Button(root, text="Browse", command=lambda: key_entry.insert(0, filedialog.askopenfilename())).pack(pady=5)
+
+    def browse_file():
+        """Select a public key file and populate the entry."""
+        key_entry.delete(0, tk.END)
+        key_entry.insert(0, filedialog.askopenfilename())
+
+    tk.Button(root, text="Browse", command=browse_file).pack(pady=5)
 
     def scan_and_fill():
         onion_hostname, session_id, public_key = scan_qr_code(root)
