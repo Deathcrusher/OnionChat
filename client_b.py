@@ -3,6 +3,7 @@ import os
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
+from tkinter.scrolledtext import ScrolledText
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding, x25519
@@ -85,7 +86,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         root.destroy()
         return
 
-    chat_display = tk.Text(root, height=15, width=60, state="disabled")
+    chat_display = ScrolledText(root, height=15, width=60, state="disabled")
     chat_display.pack(pady=10)
     message_entry = tk.Entry(root, width=50)
     message_entry.pack(pady=5)
@@ -132,7 +133,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                                 chat_display.config(state="normal")
                                 chat_display.insert(tk.END, f"Received file: {file_name}\n")
                                 chat_display.config(state="disabled")
-                                chat_display.see(tk.END)
+                                chat_display.yview(tk.END)
                                 receiving_file = False
                                 file_buffer = b""
                                 file_name = ""
@@ -166,7 +167,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                         chat_display.config(state="normal")
                         chat_display.insert(tk.END, f"Client A: {message}\n")
                         chat_display.config(state="disabled")
-                        chat_display.see(tk.END)
+                        chat_display.yview(tk.END)
                     except Exception as e:
                         messagebox.showerror("Error", f"Decryption failed: {e}")
             except Exception:
@@ -185,7 +186,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             chat_display.config(state="normal")
             chat_display.insert(tk.END, f"You: {message}\n")
             chat_display.config(state="disabled")
-            chat_display.see(tk.END)
+            chat_display.yview(tk.END)
             message_entry.delete(0, tk.END)
         except Exception as e:
             messagebox.showerror("Error", f"Sending message failed: {e}")
@@ -216,7 +217,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             chat_display.config(state="normal")
             chat_display.insert(tk.END, f"Sent file: {filename}\n")
             chat_display.config(state="disabled")
-            chat_display.see(tk.END)
+            chat_display.yview(tk.END)
         except Exception as e:
             messagebox.showerror("Error", f"File transfer failed: {e}")
 
