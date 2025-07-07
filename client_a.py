@@ -222,7 +222,6 @@ def client_a_main(args):
             messagebox.showerror("Error", f"File transfer failed: {e}")
 
     def check_timeout():
-        nonlocal last_activity
         if conn and time.time() - last_activity > args.timeout:
             signature = rsa_private.sign(
                 b"TERMINATE",
