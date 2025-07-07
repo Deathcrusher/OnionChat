@@ -86,7 +86,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
 
     ecdh_private_key = x25519.X25519PrivateKey.generate()
     ecdh_public_bytes = ecdh_private_key.public_key().public_bytes(
-        encoding=serialization.Raw,
+        encoding=serialization.Encoding.Raw,
         format=serialization.PublicFormat.Raw,
     )
     encrypted_key = rsa_public_key.encrypt(
