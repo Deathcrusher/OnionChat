@@ -55,7 +55,7 @@ python client_a_main.py [--port PORT] [--timeout SECONDS] [--padding BYTES] [--m
   - `--padding`: Message padding length in bytes (default: 1024).
   - `--max-file-size`: Maximum file size in megabytes for transfer (default: 100).
   - `--tor-impl`: Use `torpy` (default) or `stem` + Tor for networking.
-- **Output**: A GUI window displays the onion address, session ID, public key file (`client_a_public_key.pem`), and QR code. Enter a passphrase to encrypt the QR code data. Click "Copy QR Data" to copy the encrypted credentials to the clipboard. 📋
+- **Output**: A GUI window displays the onion address, session ID, a temporary public key file path, and a QR code. Enter a passphrase to encrypt the QR code data. Click "Copy QR Data" to copy the encrypted credentials to the clipboard. 📋
 - **Share**: Share the QR code (displayed in GUI) or clipboard data with Client B via a secure channel (e.g., in-person scan, encrypted messaging). 🔐
 
 ### Running Client B 🎧
