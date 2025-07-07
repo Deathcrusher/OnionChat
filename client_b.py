@@ -20,6 +20,16 @@ from chat_utils import (
 
 from torpy import TorClient
 
+try:
+    from stem.control import Controller
+except Exception:  # pragma: no cover - optional dependency
+    Controller = None
+
+try:
+    import socks
+except Exception:  # pragma: no cover - optional dependency
+    socks = None
+
 
 def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, args):
     """Connect to Client A using the supplied credentials and start the chat."""
@@ -54,9 +64,18 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     status = tk.Label(root, text="Connecting to Tor service...")
     status.pack(pady=5)
     root.update()
+    use_stem = args.tor_impl == "stem" or os.environ.get("ONIONCHAT_USE_STEM") == "1"
+    tor = None
     try:
-        tor = TorClient()
-        conn = tor.connect(onion_hostname, 80)
+        if use_stem and Controller is not None and socks is not None:
+            tor = Controller.from_port()
+            tor.authenticate()
+            conn = socks.socksocket()
+            conn.set_proxy(socks.SOCKS5, "127.0.0.1", 9050)
+            conn.connect((onion_hostname, 80))
+        else:
+            tor = TorClient()
+            conn = tor.connect(onion_hostname, 80)
         status.config(text="Connected")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to connect to Tor service: {e}")
