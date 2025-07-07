@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onionchat"
+version = "0.1.0"
+description = "Secure one-time chat over Tor"
+authors = [{name = "OnionChat Developers"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torpy==1.1.5",
+    "cryptography==41.0.3",
+    "qrcode==7.4.2",
+    "pyzbar==0.1.9",
+    "opencv-python==4.8.1.78",
+    "Pillow==10.0.0",
+    "pyperclip==1.8.2",
+]
+
+[project.scripts]
+client-a = "client_a_main:main"
+client-b = "client_b_main:main"
+
+[tool.setuptools]
+py-modules = [
+    "chat_utils",
+    "client_a",
+    "client_a_main",
+    "client_b",
+    "client_b_main",
+    "main",
+]
+
