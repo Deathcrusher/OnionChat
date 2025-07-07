@@ -42,6 +42,14 @@ pip install .
 This installs the `client-a` and `client-b` console commands, allowing you to run
 the clients with `client-a` or `client-b` from any location.
 
+### Production Setup
+For improved memory wiping in production, compile the optional C extension:
+```bash
+python setup.py build_ext --inplace
+```
+Installing via `pip install .` also builds the extension automatically if a C
+compiler is available.
+
 ### Clone the Repository 📥
 ```bash
 git clone https://github.com/<your-username>/OnionChat.git
@@ -49,15 +57,20 @@ cd OnionChat
 ```
 
 
-The codebase is organized into multiple modules. `client_a_main.py` and `client_b_main.py` provide separate entry points for each client, while `client_a.py`, `client_b.py`, and `chat_utils.py` hold the shared logic.
+The codebase is packaged under `onionchat/`. `client_a_main.py` and
+`client_b_main.py` are the entry modules used by the `client-a` and `client-b`
+commands, while the core logic lives in `client_a.py`, `client_b.py`, and
+`chat_utils.py`.
 ## Usage 🎮
 
 ### Running Client A 🎤
 Client A hosts the chat session and generates credentials (onion address, session ID, public key, and QR code).
 
 ```bash
-python client_a_main.py [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
+client-a [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
 ```
+Alternatively run `python -m onionchat.client_a_main` when using the source
+checkout.
 
 - **Options** ⚙️:
   - `--port`: Port for the Tor hidden service (default: 12345).
@@ -72,8 +85,9 @@ python client_a_main.py [--port PORT] [--timeout SECONDS] [--padding BYTES] [--m
 Client B connects to Client A’s session using the shared credentials.
 
 ```bash
-python client_b_main.py [<onion_hostname> <session_id> <public_key_file>] [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
+client-b [<onion_hostname> <session_id> <public_key_file>] [--port PORT] [--timeout SECONDS] [--padding BYTES] [--max-file-size MB] [--tor-impl {torpy,stem}]
 ```
+Or run `python -m onionchat.client_b_main` from the repository if not installed.
 
 - **Options**: Same as Client A.
 - **With Arguments**: If provided, the chat GUI opens directly.
@@ -108,12 +122,12 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 2. **Compile the Binaries**:
    - Build Client A:
      ```bash
-     pyinstaller --onefile client_a_main.py
+     pyinstaller --onefile onionchat/client_a_main.py
      ```
      This creates `dist/client_a_main` (`client_a.exe` on Windows).
    - Build Client B:
      ```bash
-     pyinstaller --onefile client_b_main.py
+     pyinstaller --onefile onionchat/client_b_main.py
      ```
      This creates `dist/client_b_main` (`client_b.exe` on Windows).
 3. **Platform-Specific Notes**:
@@ -146,11 +160,11 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 
 ## Example Workflow 🚀
 1. **Client A**:
-   - Run: `python client_a_main.py` or `./dist/client_a_main`
+   - Run: `client-a` or `./dist/client_a_main`
    - GUI shows credentials and QR code. Enter a passphrase (e.g., "mysecret123"). 🔐
    - Copy clipboard data or display QR code for Client B.
 2. **Client B**:
-   - Run: `python client_b_main.py` or `./dist/client_b_main`
+   - Run: `client-b` or `./dist/client_b_main`
    - In the setup GUI, click "Scan QR Code" (use webcam or select image) or enter credentials manually. 📷
    - Enter the passphrase ("mysecret123").
    - Click "Connect" to start chatting.
