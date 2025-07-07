@@ -3,6 +3,7 @@ import os
 import socket
 import threading
 import time
+import tempfile
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from tkinter.scrolledtext import ScrolledText
@@ -30,8 +31,9 @@ def client_a_main(args):
     root.geometry("600x400")
 
     rsa_private, _, rsa_public_bytes, ecdh_private, ecdh_public_bytes = generate_keys()
-    with open("client_a_public_key.pem", "wb") as f:
-        f.write(rsa_public_bytes)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as tmp:
+        tmp.write(rsa_public_bytes)
+        public_key_path = tmp.name
 
     status = tk.Label(root, text="Starting Tor, please wait...")
     status.pack(pady=5)
@@ -48,7 +50,12 @@ def client_a_main(args):
 
     info_label = tk.Label(
         root,
-        text=f"Onion: {onion_hostname}\nSession ID: {session_id}\nPublic Key: client_a_public_key.pem\nQR Data: Copied to clipboard",
+        text=(
+            f"Onion: {onion_hostname}\n"
+            f"Session ID: {session_id}\n"
+            f"Public Key: {public_key_path}\n"
+            "QR Data: Copied to clipboard"
+        ),
     )
     info_label.pack(pady=10)
 
@@ -176,7 +183,7 @@ def client_a_main(args):
             )
         )
         try:
-            os.remove("client_a_public_key.pem")
+            os.remove(public_key_path)
         except Exception:
             pass
         root.destroy()
@@ -261,7 +268,7 @@ def client_a_main(args):
                 serialization.NoEncryption(),
             ))
             try:
-                os.remove("client_a_public_key.pem")
+                os.remove(public_key_path)
             except Exception:
                 pass
             messagebox.showinfo("Info", "Session timed out")
