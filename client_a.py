@@ -5,6 +5,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, filedialog
+from tkinter.scrolledtext import ScrolledText
 
 from cryptography.hazmat.primitives import hashes, padding as asym_padding, serialization
 from cryptography.hazmat.primitives import constant_time
@@ -58,7 +59,7 @@ def client_a_main(args):
 
     tk.Button(root, text="Copy QR Data", command=copy_qr_data).pack(pady=5)
 
-    chat_display = tk.Text(root, height=15, width=60, state="disabled")
+    chat_display = ScrolledText(root, height=15, width=60, state="disabled")
     chat_display.pack(pady=10)
     message_entry = tk.Entry(root, width=50)
     message_entry.pack(pady=5)
@@ -98,7 +99,7 @@ def client_a_main(args):
                             chat_display.config(state="normal")
                             chat_display.insert(tk.END, f"Received file: {file_name}\n")
                             chat_display.config(state="disabled")
-                            chat_display.see(tk.END)
+                            chat_display.yview(tk.END)
                             receiving_file = False
                             file_buffer = b""
                             file_name = ""
@@ -132,7 +133,7 @@ def client_a_main(args):
                     chat_display.config(state="normal")
                     chat_display.insert(tk.END, f"Client B: {message}\n")
                     chat_display.config(state="disabled")
-                    chat_display.see(tk.END)
+                    chat_display.yview(tk.END)
                 except Exception as e:
                     messagebox.showerror("Error", f"Decryption failed: {e}")
             except Exception:
@@ -182,7 +183,7 @@ def client_a_main(args):
             chat_display.config(state="normal")
             chat_display.insert(tk.END, f"You: {message}\n")
             chat_display.config(state="disabled")
-            chat_display.see(tk.END)
+            chat_display.yview(tk.END)
             message_entry.delete(0, tk.END)
             last_activity = time.time()
         except Exception as e:
@@ -215,7 +216,7 @@ def client_a_main(args):
             chat_display.config(state="normal")
             chat_display.insert(tk.END, f"Sent file: {filename}\n")
             chat_display.config(state="disabled")
-            chat_display.see(tk.END)
+            chat_display.yview(tk.END)
             last_activity = time.time()
         except Exception as e:
             messagebox.showerror("Error", f"File transfer failed: {e}")
