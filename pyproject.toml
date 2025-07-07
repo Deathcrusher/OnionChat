@@ -17,6 +17,7 @@ dependencies = [
     "opencv-python==4.8.1.78",
     "Pillow==11.3.0",
     "pyperclip==1.8.2",
+    "numpy<2",
 ]
 
 [project.scripts]

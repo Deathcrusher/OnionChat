@@ -19,7 +19,7 @@ OnionChat is a secure, anonymous, one-time chat messenger built with Python. It 
 ## Installation 🛠️
 
 ### Prerequisites ✅
-- Python 3.10 or higher
+- Python 3.10 or higher (Python 3.13 users must install **NumPy <2**, or use Python ≤3.12)
 - A graphical environment (e.g., X11 on Linux, Windows GUI, macOS)
 - Internet connection for Tor network access
 - Optional: Webcam for QR code scanning 📸
