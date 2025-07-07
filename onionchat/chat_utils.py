@@ -241,37 +241,33 @@ def scan_qr_code(root: tk.Tk):
 
 
 def setup_hidden_service(port: int, use_stem: bool = False):
-    """Create a Tor hidden service using torpy or stem with retries."""
+    """Create a Tor hidden service using ``stem``."""
     use_stem = use_stem or os.environ.get("ONIONCHAT_USE_STEM") == "1"
-    if use_stem and Controller is not None:
-        try:
-            ctrl = Controller.from_port()
-            ctrl.authenticate()
-            hs = ctrl.create_ephemeral_hidden_service({80: port}, await_publication=True)
 
-            class _Service:
-                def __init__(self, controller, service_id):
-                    self.controller = controller
-                    self.service_id = service_id
+    if not use_stem:
+        raise RuntimeError(
+            "torpy does not support creating hidden services; use --tor-impl stem"
+        )
 
-                def close(self):
-                    try:
-                        self.controller.remove_ephemeral_hidden_service(self.service_id)
-                    finally:
-                        self.controller.close()
+    if Controller is None:
+        raise RuntimeError("stem is required to create hidden services")
 
-            return ctrl, _Service(ctrl, hs.service_id), f"{hs.service_id}.onion"
-        except Exception as e:  # pragma: no cover - network dependency
-            print(f"stem failed: {e}")
+    try:
+        ctrl = Controller.from_port()
+        ctrl.authenticate()
+        hs = ctrl.create_ephemeral_hidden_service({80: port}, await_publication=True)
 
-    for attempt in range(3):
-        try:
-            tor = TorClient()
-            tor.get_circuit()
-            onion = tor.create_hidden_service(ports={80: port})
-            return tor, onion, onion.onion_hostname
-        except Exception as e:  # pragma: no cover - network dependency
-            print(f"Attempt {attempt+1} failed: {e}")
-            if attempt == 2:
-                raise Exception("Failed to create hidden service")
-    raise Exception("Failed to create hidden service")
+        class _Service:
+            def __init__(self, controller, service_id):
+                self.controller = controller
+                self.service_id = service_id
+
+            def close(self):
+                try:
+                    self.controller.remove_ephemeral_hidden_service(self.service_id)
+                finally:
+                    self.controller.close()
+
+        return ctrl, _Service(ctrl, hs.service_id), f"{hs.service_id}.onion"
+    except Exception as e:  # pragma: no cover - network dependency
+        raise RuntimeError(f"Failed to create hidden service using stem: {e}")
