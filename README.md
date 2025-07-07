@@ -122,12 +122,12 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 2. **Compile the Binaries**:
    - Build Client A:
      ```bash
-     pyinstaller --onefile onionchat/client_a_main.py
+     pyinstaller --onefile -m onionchat.client_a_main
      ```
      This creates `dist/client_a_main` (`client_a.exe` on Windows).
    - Build Client B:
      ```bash
-     pyinstaller --onefile onionchat/client_b_main.py
+     pyinstaller --onefile -m onionchat.client_b_main
      ```
      This creates `dist/client_b_main` (`client_b.exe` on Windows).
 3. **Platform-Specific Notes**:
