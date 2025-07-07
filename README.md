@@ -35,7 +35,7 @@ All dependencies must be installed before running OnionChat.
 ### Install via `pip`
 If you prefer using `pip`, the project can be installed as a package after cloning:
 ```bash
-git clone https://github.com/<your-username>/OnionChat.git
+git clone https://github.com/Deathcrusher/OnionChat.git
 cd OnionChat
 pip install .
 ```
@@ -52,7 +52,7 @@ compiler is available.
 
 ### Clone the Repository 📥
 ```bash
-git clone https://github.com/<your-username>/OnionChat.git
+git clone https://github.com/Deathcrusher/OnionChat.git
 cd OnionChat
 ```
 
@@ -212,4 +212,4 @@ Contributions are welcome! Please follow these steps:
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact 📧
-For issues or suggestions, open a GitHub issue or contact the maintainer
+For issues or suggestions, open a GitHub issue or contact the maintainer 
