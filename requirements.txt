@@ -3,5 +3,5 @@ cryptography==41.0.3
 qrcode==7.4.2
 pyzbar==0.1.9
 opencv-python==4.8.1.78
-Pillow==10.0.0
+Pillow==11.3.0
 pyperclip==1.8.2
