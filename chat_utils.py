@@ -11,6 +11,11 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from PIL import ImageTk
 
 try:
+    from _wiper import wipe as c_wipe
+except Exception:  # pragma: no cover - optional C module
+    c_wipe = None
+
+try:
     from torpy import TorClient
 except Exception:  # pragma: no cover - network dependency
     TorClient = None
@@ -46,11 +51,14 @@ def secure_wipe(data):
             ba = bytearray(data)
         else:
             ba = data
-        rnd = secrets.token_bytes(len(ba))
-        for i in range(len(ba)):
-            ba[i] = rnd[i]
-        for i in range(len(ba)):
-            ba[i] = 0
+        if c_wipe is not None:
+            c_wipe(ba)
+        else:
+            rnd = secrets.token_bytes(len(ba))
+            for i in range(len(ba)):
+                ba[i] = rnd[i]
+            for i in range(len(ba)):
+                ba[i] = 0
     except Exception:
         pass
 
