@@ -152,7 +152,12 @@ def decrypt_qr_data(salt: bytes, nonce: bytes, ct: bytes, tag: bytes, passphrase
 
 def generate_qr_code(onion: str, session_id: str, rsa_bytes: bytes, root: tk.Tk) -> str:
     """Generate and optionally display a QR code containing encrypted connection info."""
-    passphrase = simpledialog.askstring("Input", "Enter passphrase for QR code encryption", parent=root)
+    passphrase = simpledialog.askstring(
+        "Input",
+        "Enter passphrase for QR code encryption",
+        parent=root,
+        show="*",
+    )
     if not passphrase:
         raise ValueError("Passphrase required")
     salt, nonce, ct, tag = encrypt_qr_data(onion, session_id, rsa_bytes, passphrase)
@@ -188,7 +193,12 @@ def scan_qr_code(root: tk.Tk):
                 cv2.destroyAllWindows()
                 try:
                     salt, nonce, ct, tag = [bytes.fromhex(x) for x in qr_data.split(":")]
-                    passphrase = simpledialog.askstring("Input", "Enter passphrase for QR code decryption", parent=root)
+                    passphrase = simpledialog.askstring(
+                        "Input",
+                        "Enter passphrase for QR code decryption",
+                        parent=root,
+                        show="*",
+                    )
                     if not passphrase:
                         return None, None, None
                     return decrypt_qr_data(salt, nonce, ct, tag, passphrase)
@@ -208,7 +218,12 @@ def scan_qr_code(root: tk.Tk):
             qr_data = codes[0].data.decode()
             try:
                 salt, nonce, ct, tag = [bytes.fromhex(x) for x in qr_data.split(":")]
-                passphrase = simpledialog.askstring("Input", "Enter passphrase for QR code decryption", parent=root)
+                passphrase = simpledialog.askstring(
+                    "Input",
+                    "Enter passphrase for QR code decryption",
+                    parent=root,
+                    show="*",
+                )
                 if not passphrase:
                     return None, None, None
                 return decrypt_qr_data(salt, nonce, ct, tag, passphrase)
