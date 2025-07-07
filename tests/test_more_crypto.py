@@ -1,7 +1,12 @@
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from chat_utils import encrypt_bytes, decrypt_bytes, encrypt_qr_data, decrypt_qr_data
+from onionchat.chat_utils import (
+    encrypt_bytes,
+    decrypt_bytes,
+    encrypt_qr_data,
+    decrypt_qr_data,
+)
 import pytest
 
 def test_encrypt_decrypt_bytes():

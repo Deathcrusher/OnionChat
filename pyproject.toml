@@ -20,16 +20,9 @@ dependencies = [
 ]
 
 [project.scripts]
-client-a = "client_a_main:main"
-client-b = "client_b_main:main"
+client-a = "onionchat.client_a_main:main"
+client-b = "onionchat.client_b_main:main"
 
 [tool.setuptools]
-py-modules = [
-    "chat_utils",
-    "client_a",
-    "client_a_main",
-    "client_b",
-    "client_b_main",
-    "main",
-]
+packages = ["onionchat"]
 

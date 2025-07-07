@@ -1,6 +1,6 @@
 """Entry script for OnionChat Client B."""
 import argparse
-from client_b import client_b_main, client_b_setup
+from .client_b import client_b_main, client_b_setup
 
 
 def parse_args(argv=None):

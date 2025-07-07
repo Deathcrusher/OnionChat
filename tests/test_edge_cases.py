@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
-from chat_utils import encrypt_message, decrypt_message, secure_wipe
+from onionchat.chat_utils import encrypt_message, decrypt_message, secure_wipe
 
 
 def test_encrypt_message_too_long():
@@ -19,13 +19,13 @@ def test_secure_wipe():
 
 
 def test_cli_parsing():
-    import client_a_main
+    from onionchat import client_a_main
     args = client_a_main.parse_args([])
     assert args.port == 12345
 
 
 def test_client_b_default_args():
-    import client_b_main
+    from onionchat import client_b_main
     args = client_b_main.parse_args([])
     assert args.padding == 1024
     assert args.max_file_size == 100

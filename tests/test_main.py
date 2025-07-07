@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from main import check_dependencies, REQUIRED_PKGS
+from onionchat.main import check_dependencies, REQUIRED_PKGS
 
 
 def test_check_dependencies_success():
