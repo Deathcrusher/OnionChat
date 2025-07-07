@@ -81,93 +81,32 @@ def client_a_main(args):
     conn = None
     session_key = None
     last_activity = time.time()
+    cleanup_called = False
 
-    def receive_messages():
-        nonlocal last_activity
-        receiving_file = False
-        file_buffer = b""
-        file_name = ""
-        file_size = 0
-        while True:
-            try:
-                data = conn.recv(4096)
-                last_activity = time.time()
-                if not data:
-                    break
-                nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
-                if receiving_file:
-                    try:
-                        chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
-                        file_buffer += chunk
-                        if len(file_buffer) >= file_size:
-                            save_path = filedialog.asksaveasfilename(initialfile=file_name)
-                            if save_path:
-                                with open(save_path, "wb") as f:
-                                    f.write(file_buffer[:file_size])
-                            chat_display.config(state="normal")
-                            chat_display.insert(tk.END, f"Received file: {file_name}\n")
-                            chat_display.config(state="disabled")
-                            chat_display.yview(tk.END)
-                            receiving_file = False
-                            file_buffer = b""
-                            file_name = ""
-                            file_size = 0
-                        continue
-                    except Exception as e:
-                        messagebox.showerror("Error", f"File transfer failed: {e}")
-                        receiving_file = False
-                        file_buffer = b""
-                        file_name = ""
-                        file_size = 0
-                        continue
-                try:
-                    message = decrypt_message(nonce, ciphertext, tag, session_key)
-                    if message.startswith("FILE_TRANSFER_START:"):
-                        try:
-                            _, fname, fsize = message.split(":", 2)
-                            file_name = os.path.basename(fname)
-                            file_size = int(fsize)
-                            file_buffer = b""
-                            receiving_file = True
-                        except Exception as e:
-                            messagebox.showerror("Error", f"Invalid file header: {e}")
-                        continue
-                    elif message == "FILE_TRANSFER_END":
-                        receiving_file = False
-                        file_buffer = b""
-                        file_name = ""
-                        file_size = 0
-                        continue
-                    chat_display.config(state="normal")
-                    chat_display.insert(tk.END, f"Client B: {message}\n")
-                    chat_display.config(state="disabled")
-                    chat_display.yview(tk.END)
-                except Exception as e:
-                    messagebox.showerror("Error", f"Decryption failed: {e}")
-            except Exception:
-                break
-        if conn:
-            conn.close()
-
-    def terminate_session():
-        """Send the termination signature and cleanup resources."""
-        signature = rsa_private.sign(
-            b"TERMINATE",
-            asym_padding.PSS(
-                mgf=asym_padding.MGF1(hashes.SHA256()),
-                salt_length=asym_padding.PSS.MAX_LENGTH,
-            ),
-            hashes.SHA256(),
-        )
+    def cleanup():
+        nonlocal cleanup_called, conn, server, onion, tor, session_key
+        if cleanup_called:
+            return
+        cleanup_called = True
         try:
-            conn.send(signature)
+            if conn:
+                conn.close()
         except Exception:
             pass
-        conn.close()
-        server.close()
-        onion.close()
-        tor.close()
-        secure_wipe(session_key)
+        try:
+            server.close()
+        except Exception:
+            pass
+        try:
+            onion.close()
+        except Exception:
+            pass
+        try:
+            tor.close()
+        except Exception:
+            pass
+        if session_key:
+            secure_wipe(session_key)
         secure_wipe(
             ecdh_private.private_bytes(
                 serialization.Encoding.Raw,
@@ -186,7 +125,94 @@ def client_a_main(args):
             os.remove(public_key_path)
         except Exception:
             pass
-        root.destroy()
+        try:
+            root.destroy()
+        except Exception:
+            pass
+
+    def receive_messages():
+        nonlocal last_activity
+        receiving_file = False
+        file_buffer = b""
+        file_name = ""
+        file_size = 0
+        try:
+            while True:
+                try:
+                    data = conn.recv(4096)
+                    last_activity = time.time()
+                    if not data:
+                        break
+                    nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+                    if receiving_file:
+                        try:
+                            chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                            file_buffer += chunk
+                            if len(file_buffer) >= file_size:
+                                save_path = filedialog.asksaveasfilename(initialfile=file_name)
+                                if save_path:
+                                    with open(save_path, "wb") as f:
+                                        f.write(file_buffer[:file_size])
+                                chat_display.config(state="normal")
+                                chat_display.insert(tk.END, f"Received file: {file_name}\n")
+                                chat_display.config(state="disabled")
+                                chat_display.yview(tk.END)
+                                receiving_file = False
+                                file_buffer = b""
+                                file_name = ""
+                                file_size = 0
+                            continue
+                        except Exception as e:
+                            messagebox.showerror("Error", f"File transfer failed: {e}")
+                            receiving_file = False
+                            file_buffer = b""
+                            file_name = ""
+                            file_size = 0
+                            continue
+                    try:
+                        message = decrypt_message(nonce, ciphertext, tag, session_key)
+                        if message.startswith("FILE_TRANSFER_START:"):
+                            try:
+                                _, fname, fsize = message.split(":", 2)
+                                file_name = os.path.basename(fname)
+                                file_size = int(fsize)
+                                file_buffer = b""
+                                receiving_file = True
+                            except Exception as e:
+                                messagebox.showerror("Error", f"Invalid file header: {e}")
+                            continue
+                        elif message == "FILE_TRANSFER_END":
+                            receiving_file = False
+                            file_buffer = b""
+                            file_name = ""
+                            file_size = 0
+                            continue
+                        chat_display.config(state="normal")
+                        chat_display.insert(tk.END, f"Client B: {message}\n")
+                        chat_display.config(state="disabled")
+                        chat_display.yview(tk.END)
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Decryption failed: {e}")
+                except Exception:
+                    break
+        finally:
+            cleanup()
+
+    def terminate_session():
+        """Send the termination signature and cleanup resources."""
+        signature = rsa_private.sign(
+            b"TERMINATE",
+            asym_padding.PSS(
+                mgf=asym_padding.MGF1(hashes.SHA256()),
+                salt_length=asym_padding.PSS.MAX_LENGTH,
+            ),
+            hashes.SHA256(),
+        )
+        try:
+            conn.send(signature)
+        except Exception:
+            pass
+        cleanup()
         return
 
     def send_message():
@@ -204,10 +230,12 @@ def client_a_main(args):
             chat_display.insert(tk.END, f"You: {message}\n")
             chat_display.config(state="disabled")
             chat_display.yview(tk.END)
-            message_entry.delete(0, tk.END)
             last_activity = time.time()
         except Exception as e:
             messagebox.showerror("Error", f"Encryption failed: {e}")
+            cleanup()
+        finally:
+            message_entry.delete(0, tk.END)
 
     def send_file():
         nonlocal last_activity
@@ -240,6 +268,7 @@ def client_a_main(args):
             last_activity = time.time()
         except Exception as e:
             messagebox.showerror("Error", f"File transfer failed: {e}")
+            cleanup()
 
     def check_timeout():
         if conn and time.time() - last_activity > args.timeout:
@@ -251,28 +280,13 @@ def client_a_main(args):
                 ),
                 hashes.SHA256(),
             )
-            conn.send(signature)
-            conn.close()
-            server.close()
-            onion.close()
-            tor.close()
-            secure_wipe(session_key)
-            secure_wipe(ecdh_private.private_bytes(
-                serialization.Encoding.Raw,
-                serialization.PrivateFormat.Raw,
-                serialization.NoEncryption(),
-            ))
-            secure_wipe(rsa_private.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.TraditionalOpenSSL,
-                serialization.NoEncryption(),
-            ))
             try:
-                os.remove(public_key_path)
+                conn.send(signature)
             except Exception:
                 pass
             messagebox.showinfo("Info", "Session timed out")
-            root.destroy()
+            cleanup()
+            return
         root.after(1000, check_timeout)
 
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
@@ -290,22 +304,7 @@ def client_a_main(args):
             received_session_id = conn.recv(1024).decode()
             if not constant_time.bytes_eq(received_session_id.encode(), session_id.encode()):
                 messagebox.showerror("Error", "Invalid session ID")
-                conn.close()
-                server.close()
-                onion.close()
-                tor.close()
-                secure_wipe(session_key)
-                secure_wipe(ecdh_private.private_bytes(
-                    serialization.Encoding.Raw,
-                    serialization.PrivateFormat.Raw,
-                    serialization.NoEncryption(),
-                ))
-                secure_wipe(rsa_private.private_bytes(
-                    serialization.Encoding.PEM,
-                    serialization.PrivateFormat.TraditionalOpenSSL,
-                    serialization.NoEncryption(),
-                ))
-                root.destroy()
+                cleanup()
                 return
 
             encrypted_key = conn.recv(4096)
@@ -321,22 +320,7 @@ def client_a_main(args):
                 session_key = derive_session_key(ecdh_private, ecdh_peer_bytes)
             except Exception as e:
                 messagebox.showerror("Error", f"Key exchange failed: {e}")
-                conn.close()
-                server.close()
-                onion.close()
-                tor.close()
-                secure_wipe(session_key)
-                secure_wipe(ecdh_private.private_bytes(
-                    serialization.Encoding.Raw,
-                    serialization.PrivateFormat.Raw,
-                    serialization.NoEncryption(),
-                ))
-                secure_wipe(rsa_private.private_bytes(
-                    serialization.Encoding.PEM,
-                    serialization.PrivateFormat.TraditionalOpenSSL,
-                    serialization.NoEncryption(),
-                ))
-                root.destroy()
+                cleanup()
                 return
 
             conn.send(ecdh_public_bytes)
@@ -344,22 +328,11 @@ def client_a_main(args):
             root.after(1000, check_timeout)
         except Exception as e:
             messagebox.showerror("Error", f"Connection failed: {e}")
-            server.close()
-            onion.close()
-            tor.close()
-            secure_wipe(session_key)
-            secure_wipe(ecdh_private.private_bytes(
-                serialization.Encoding.Raw,
-                serialization.PrivateFormat.Raw,
-                serialization.NoEncryption(),
-            ))
-            secure_wipe(rsa_private.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.TraditionalOpenSSL,
-                serialization.NoEncryption(),
-            ))
-            root.destroy()
+            cleanup()
             return
 
     accept_connection()
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        cleanup()
