@@ -5,7 +5,7 @@ OnionChat is a secure, anonymous, one-time chat messenger built with Python. It 
 ## Features 🌟
 
 - **End-to-End Encryption** 🔐: Messages are encrypted with AES-256-GCM, with keys exchanged via RSA-4096 and ECDH for forward secrecy.
-- **Anonymity** 🕵️: Uses Tor hidden services (via `torpy` or the official Tor client with `stem`) to hide IP addresses.
+- **Anonymity** 🕵️: Uses Tor hidden services via the official Tor client (`stem`) to hide IP addresses. The `torpy` library may be used for connecting to services but cannot host them.
 - **One-Time Sessions** ⏳: Ephemeral sessions with no message storage and reconnection prevention.
 - **Kill Switch** 🛑: Client A can terminate the session with a signed message, ensuring control.
 - **QR Code Sharing** 📷: Encrypted QR codes (with passphrase) for secure sharing of onion address, session ID, and public key.
@@ -77,7 +77,7 @@ checkout.
   - `--timeout`: Session inactivity timeout in seconds (default: 600).
   - `--padding`: Message padding length in bytes (default: 1024).
   - `--max-file-size`: Maximum file size in megabytes for transfer (default: 100).
-  - `--tor-impl`: Use `torpy` (default) or `stem` + Tor for networking.
+  - `--tor-impl`: Use `stem` + Tor (default) or the pure Python `torpy` client.
   - **Output**: A GUI window displays the onion address, session ID, a temporary public key file path, and a QR code. Enter a passphrase to encrypt the QR code data. Click "Copy QR Data" to copy the encrypted credentials to the clipboard. 📋
 - **Share**: Share the QR code (displayed in GUI) or clipboard data with Client B via a secure channel (e.g., in-person scan, encrypted messaging). 🔐
 

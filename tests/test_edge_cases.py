@@ -29,7 +29,7 @@ def test_client_b_default_args():
     args = client_b_main.parse_args([])
     assert args.padding == 1024
     assert args.max_file_size == 100
-    assert args.tor_impl == "torpy"
+    assert args.tor_impl == "stem"
     assert args.onion is None
     assert args.session is None
     assert args.key is None

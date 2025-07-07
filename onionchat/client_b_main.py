@@ -11,7 +11,12 @@ def parse_args(argv=None):
     parser.add_argument("--key", help="Public key file")
     parser.add_argument("--padding", type=int, default=1024, help="Message padding length")
     parser.add_argument("--max-file-size", type=int, default=100, help="Maximum file size in MB")
-    parser.add_argument("--tor-impl", choices=["torpy", "stem"], default="torpy", help="Tor implementation")
+    parser.add_argument(
+        "--tor-impl",
+        choices=["torpy", "stem"],
+        default="stem",
+        help="Tor implementation",
+    )
     return parser.parse_args(argv)
 
 

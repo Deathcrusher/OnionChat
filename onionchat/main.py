@@ -42,7 +42,12 @@ def parse_args():
     parser.add_argument("--timeout", type=int, default=600, help="Session timeout in seconds")
     parser.add_argument("--padding", type=int, default=1024, help="Message padding length")
     parser.add_argument("--max-file-size", type=int, default=100, help="Maximum file size in MB")
-    parser.add_argument("--tor-impl", choices=["torpy", "stem"], default="torpy", help="Tor implementation")
+    parser.add_argument(
+        "--tor-impl",
+        choices=["torpy", "stem"],
+        default="stem",
+        help="Tor implementation",
+    )
     parser.add_argument("--onion", help="Client B onion address")
     parser.add_argument("--session", help="Client B session id")
     parser.add_argument("--key", help="Client B public key file")
