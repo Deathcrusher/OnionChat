@@ -69,6 +69,7 @@ def client_a_main(args):
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("localhost", args.port))
     server.listen(1)
+    server.setblocking(False)
 
     conn = None
     session_key = None
@@ -271,39 +272,71 @@ def client_a_main(args):
     tk.Button(root, text="Send File", command=send_file).pack(pady=5)
     tk.Button(root, text="Exit", command=terminate_session).pack(pady=5)
 
-    try:
-        conn, _ = server.accept()
-        received_session_id = conn.recv(1024).decode()
-        if not constant_time.bytes_eq(received_session_id.encode(), session_id.encode()):
-            messagebox.showerror("Error", "Invalid session ID")
-            conn.close()
-            server.close()
-            onion.close()
-            tor.close()
-            secure_wipe(session_key)
-            secure_wipe(ecdh_private.private_bytes(
-                serialization.Encoding.Raw,
-                serialization.PrivateFormat.Raw,
-                serialization.NoEncryption(),
-            ))
-            secure_wipe(rsa_private.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.TraditionalOpenSSL,
-                serialization.NoEncryption(),
-            ))
-            root.destroy()
-            return
-
-        encrypted_key = conn.recv(4096)
+    def accept_connection():
+        nonlocal conn, session_key
         try:
-            ecdh_peer_bytes = rsa_private.decrypt(
-                encrypted_key,
-                asym_padding.OAEP(mgf=asym_padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
-            )
-            session_key = derive_session_key(ecdh_private, ecdh_peer_bytes)
+            conn, _ = server.accept()
+        except BlockingIOError:
+            root.after(100, accept_connection)
+            return
+        try:
+            received_session_id = conn.recv(1024).decode()
+            if not constant_time.bytes_eq(received_session_id.encode(), session_id.encode()):
+                messagebox.showerror("Error", "Invalid session ID")
+                conn.close()
+                server.close()
+                onion.close()
+                tor.close()
+                secure_wipe(session_key)
+                secure_wipe(ecdh_private.private_bytes(
+                    serialization.Encoding.Raw,
+                    serialization.PrivateFormat.Raw,
+                    serialization.NoEncryption(),
+                ))
+                secure_wipe(rsa_private.private_bytes(
+                    serialization.Encoding.PEM,
+                    serialization.PrivateFormat.TraditionalOpenSSL,
+                    serialization.NoEncryption(),
+                ))
+                root.destroy()
+                return
+
+            encrypted_key = conn.recv(4096)
+            try:
+                ecdh_peer_bytes = rsa_private.decrypt(
+                    encrypted_key,
+                    asym_padding.OAEP(
+                        mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None,
+                    ),
+                )
+                session_key = derive_session_key(ecdh_private, ecdh_peer_bytes)
+            except Exception as e:
+                messagebox.showerror("Error", f"Key exchange failed: {e}")
+                conn.close()
+                server.close()
+                onion.close()
+                tor.close()
+                secure_wipe(session_key)
+                secure_wipe(ecdh_private.private_bytes(
+                    serialization.Encoding.Raw,
+                    serialization.PrivateFormat.Raw,
+                    serialization.NoEncryption(),
+                ))
+                secure_wipe(rsa_private.private_bytes(
+                    serialization.Encoding.PEM,
+                    serialization.PrivateFormat.TraditionalOpenSSL,
+                    serialization.NoEncryption(),
+                ))
+                root.destroy()
+                return
+
+            conn.send(ecdh_public_bytes)
+            threading.Thread(target=receive_messages, daemon=True).start()
+            root.after(1000, check_timeout)
         except Exception as e:
-            messagebox.showerror("Error", f"Key exchange failed: {e}")
-            conn.close()
+            messagebox.showerror("Error", f"Connection failed: {e}")
             server.close()
             onion.close()
             tor.close()
@@ -321,26 +354,5 @@ def client_a_main(args):
             root.destroy()
             return
 
-        conn.send(ecdh_public_bytes)
-        threading.Thread(target=receive_messages, daemon=True).start()
-        root.after(1000, check_timeout)
-    except Exception as e:
-        messagebox.showerror("Error", f"Connection failed: {e}")
-        server.close()
-        onion.close()
-        tor.close()
-        secure_wipe(session_key)
-        secure_wipe(ecdh_private.private_bytes(
-            serialization.Encoding.Raw,
-            serialization.PrivateFormat.Raw,
-            serialization.NoEncryption(),
-        ))
-        secure_wipe(rsa_private.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.TraditionalOpenSSL,
-            serialization.NoEncryption(),
-        ))
-        root.destroy()
-        return
-
+    accept_connection()
     root.mainloop()
