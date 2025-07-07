@@ -15,6 +15,15 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def main(argv=None):
+    """Entry point for the ``client-b`` console script."""
+    args = parse_args(argv)
+    if args.onion and args.session and args.key:
+        client_b_main(args.onion, args.session, args.key, args)
+    else:
+        client_b_setup(args)
+
+
 if __name__ == "__main__":
     args = parse_args()
     if args.onion and args.session and args.key:

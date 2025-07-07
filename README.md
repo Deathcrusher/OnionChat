@@ -32,6 +32,16 @@ pip install -r requirements.txt
 
 All dependencies must be installed before running OnionChat.
 
+### Install via `pip`
+If you prefer using `pip`, the project can be installed as a package after cloning:
+```bash
+git clone https://github.com/<your-username>/OnionChat.git
+cd OnionChat
+pip install .
+```
+This installs the `client-a` and `client-b` console commands, allowing you to run
+the clients with `client-a` or `client-b` from any location.
+
 ### Clone the Repository 📥
 ```bash
 git clone https://github.com/<your-username>/OnionChat.git

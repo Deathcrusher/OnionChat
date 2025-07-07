@@ -14,6 +14,12 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def main(argv=None):
+    """Entry point for the ``client-a`` console script."""
+    args = parse_args(argv)
+    client_a_main(args)
+
+
 if __name__ == "__main__":
     args = parse_args()
     client_a_main(args)
