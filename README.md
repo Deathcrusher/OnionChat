@@ -30,7 +30,7 @@ Run the following command to install required Python packages:
 pip install -r requirements.txt
 ```
 
-Alternatively, the script (`main.py`) automatically installs missing dependencies on first run.
+All dependencies must be installed before running OnionChat.
 
 ### Clone the Repository 📥
 ```bash

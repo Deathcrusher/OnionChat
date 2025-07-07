@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
 """Entry point and CLI for OnionChat."""
 import argparse
-import subprocess
+import importlib
 import sys
 
-# Ensure dependencies are installed when running directly
-DEPENDENCIES = [
-    "torpy",
-    "cryptography",
+# Required and optional dependencies
+REQUIRED_PKGS = ["torpy", "cryptography"]
+OPTIONAL_PKGS = [
     "qrcode",
     "pyzbar",
     "opencv-python",
     "Pillow",
     "pyperclip",
 ]
-for pkg in DEPENDENCIES:
-    try:
-        __import__(pkg.split("-")[0])
-    except Exception:
-        print(f"Installing {pkg}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+DEPENDENCIES = REQUIRED_PKGS + OPTIONAL_PKGS
+
+
+def check_dependencies():
+    """Ensure mandatory packages are available."""
+    missing = []
+    for pkg in REQUIRED_PKGS:
+        try:
+            importlib.import_module(pkg.split("-")[0])
+        except Exception:
+            missing.append(pkg)
+    if missing:
+        deps = ", ".join(missing)
+        raise RuntimeError(
+            f"Missing required packages: {deps}. "
+            "Install them with `pip install -r requirements.txt`."
+        )
 
 from client_a import client_a_main
 from client_b import client_b_setup
@@ -40,6 +50,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    check_dependencies()
     args = parse_args()
     if args.mode == "client_a":
         client_a_main(args)
