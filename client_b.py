@@ -66,6 +66,43 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     root.update()
     use_stem = args.tor_impl == "stem" or os.environ.get("ONIONCHAT_USE_STEM") == "1"
     tor = None
+    conn = None
+    session_key = None
+    cleanup_called = False
+
+    def cleanup():
+        nonlocal cleanup_called, conn, tor, session_key
+        if cleanup_called:
+            return
+        cleanup_called = True
+        try:
+            if conn:
+                conn.close()
+        except Exception:
+            pass
+        try:
+            if tor:
+                tor.close()
+        except Exception:
+            pass
+        if session_key:
+            secure_wipe(session_key)
+        secure_wipe(
+            ecdh_private_key.private_bytes(
+                serialization.Encoding.Raw,
+                serialization.PrivateFormat.Raw,
+                serialization.NoEncryption(),
+            )
+        )
+        if public_key_file == "temp_public_key.pem" and os.path.exists(public_key_file):
+            try:
+                os.remove(public_key_file)
+            except Exception:
+                pass
+        try:
+            root.destroy()
+        except Exception:
+            pass
     try:
         if use_stem and Controller is not None and socks is not None:
             tor = Controller.from_port()
@@ -79,30 +116,17 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         status.config(text="Connected")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to connect to Tor service: {e}")
-        secure_wipe(ecdh_private_key.private_bytes(
-            serialization.Encoding.Raw,
-            serialization.PrivateFormat.Raw,
-            serialization.NoEncryption(),
-        ))
-        root.destroy()
+        cleanup()
         return
 
-    conn.send(session_id.encode())
-    conn.send(encrypted_key)
-
-    ecdh_peer_bytes = conn.recv(32)
     try:
+        conn.send(session_id.encode())
+        conn.send(encrypted_key)
+        ecdh_peer_bytes = conn.recv(32)
         session_key = derive_session_key(ecdh_private_key, ecdh_peer_bytes)
     except Exception as e:
         messagebox.showerror("Error", f"Session key derivation failed: {e}")
-        conn.close()
-        tor.close()
-        secure_wipe(ecdh_private_key.private_bytes(
-            serialization.Encoding.Raw,
-            serialization.PrivateFormat.Raw,
-            serialization.NoEncryption(),
-        ))
-        root.destroy()
+        cleanup()
         return
 
     chat_display = ScrolledText(root, height=15, width=60, state="disabled")
@@ -116,84 +140,79 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         file_buffer = b""
         file_name = ""
         file_size = 0
-        while True:
-            try:
-                data = conn.recv(4096)
-                if not data:
-                    break
+        try:
+            while True:
                 try:
-                    rsa_public_key.verify(
-                        data,
-                        b"TERMINATE",
-                        asym_padding.PSS(mgf=asym_padding.MGF1(hashes.SHA256()), salt_length=asym_padding.PSS.MAX_LENGTH),
-                    )
-                    messagebox.showinfo("Info", "Session terminated by Client A")
-                    conn.close()
-                    tor.close()
-                    secure_wipe(session_key)
-                    secure_wipe(ecdh_private_key.private_bytes(
-                        serialization.Encoding.Raw,
-                        serialization.PrivateFormat.Raw,
-                        serialization.NoEncryption(),
-                    ))
-                    root.destroy()
-                    return
-                except Exception:
-                    nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
-                    if receiving_file:
-                        try:
-                            chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
-                            file_buffer += chunk
-                            if len(file_buffer) >= file_size:
-                                save_path = filedialog.asksaveasfilename(initialfile=file_name)
-                                if save_path:
-                                    with open(save_path, "wb") as f:
-                                        f.write(file_buffer[:file_size])
-                                chat_display.config(state="normal")
-                                chat_display.insert(tk.END, f"Received file: {file_name}\n")
-                                chat_display.config(state="disabled")
-                                chat_display.yview(tk.END)
+                    data = conn.recv(4096)
+                    if not data:
+                        break
+                    try:
+                        rsa_public_key.verify(
+                            data,
+                            b"TERMINATE",
+                            asym_padding.PSS(
+                                mgf=asym_padding.MGF1(hashes.SHA256()),
+                                salt_length=asym_padding.PSS.MAX_LENGTH,
+                            ),
+                        )
+                        messagebox.showinfo("Info", "Session terminated by Client A")
+                        cleanup()
+                        return
+                    except Exception:
+                        nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+                        if receiving_file:
+                            try:
+                                chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                                file_buffer += chunk
+                                if len(file_buffer) >= file_size:
+                                    save_path = filedialog.asksaveasfilename(initialfile=file_name)
+                                    if save_path:
+                                        with open(save_path, "wb") as f:
+                                            f.write(file_buffer[:file_size])
+                                    chat_display.config(state="normal")
+                                    chat_display.insert(tk.END, f"Received file: {file_name}\n")
+                                    chat_display.config(state="disabled")
+                                    chat_display.yview(tk.END)
+                                    receiving_file = False
+                                    file_buffer = b""
+                                    file_name = ""
+                                    file_size = 0
+                                continue
+                            except Exception as e:
+                                messagebox.showerror("Error", f"File transfer failed: {e}")
                                 receiving_file = False
                                 file_buffer = b""
                                 file_name = ""
                                 file_size = 0
-                            continue
-                        except Exception as e:
-                            messagebox.showerror("Error", f"File transfer failed: {e}")
-                            receiving_file = False
-                            file_buffer = b""
-                            file_name = ""
-                            file_size = 0
-                            continue
-                    try:
-                        message = decrypt_message(nonce, ciphertext, tag, session_key)
-                        if message.startswith("FILE_TRANSFER_START:"):
-                            try:
-                                _, fname, fsize = message.split(":", 2)
-                                file_name = os.path.basename(fname)
-                                file_size = int(fsize)
+                                continue
+                        try:
+                            message = decrypt_message(nonce, ciphertext, tag, session_key)
+                            if message.startswith("FILE_TRANSFER_START:"):
+                                try:
+                                    _, fname, fsize = message.split(":", 2)
+                                    file_name = os.path.basename(fname)
+                                    file_size = int(fsize)
+                                    file_buffer = b""
+                                    receiving_file = True
+                                except Exception as e:
+                                    messagebox.showerror("Error", f"Invalid file header: {e}")
+                                continue
+                            elif message == "FILE_TRANSFER_END":
+                                receiving_file = False
                                 file_buffer = b""
-                                receiving_file = True
-                            except Exception as e:
-                                messagebox.showerror("Error", f"Invalid file header: {e}")
-                            continue
-                        elif message == "FILE_TRANSFER_END":
-                            receiving_file = False
-                            file_buffer = b""
-                            file_name = ""
-                            file_size = 0
-                            continue
-                        chat_display.config(state="normal")
-                        chat_display.insert(tk.END, f"Client A: {message}\n")
-                        chat_display.config(state="disabled")
-                        chat_display.yview(tk.END)
-                    except Exception as e:
-                        messagebox.showerror("Error", f"Decryption failed: {e}")
-            except Exception:
-                break
-        conn.close()
-        tor.close()
-        root.destroy()
+                                file_name = ""
+                                file_size = 0
+                                continue
+                            chat_display.config(state="normal")
+                            chat_display.insert(tk.END, f"Client A: {message}\n")
+                            chat_display.config(state="disabled")
+                            chat_display.yview(tk.END)
+                        except Exception as e:
+                            messagebox.showerror("Error", f"Decryption failed: {e}")
+                except Exception:
+                    break
+        finally:
+            cleanup()
 
     def send_message():
         message = message_entry.get()
@@ -206,9 +225,11 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             chat_display.insert(tk.END, f"You: {message}\n")
             chat_display.config(state="disabled")
             chat_display.yview(tk.END)
-            message_entry.delete(0, tk.END)
         except Exception as e:
             messagebox.showerror("Error", f"Sending message failed: {e}")
+            cleanup()
+        finally:
+            message_entry.delete(0, tk.END)
 
     def send_file():
         file_path = filedialog.askopenfilename()
@@ -239,6 +260,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             chat_display.yview(tk.END)
         except Exception as e:
             messagebox.showerror("Error", f"File transfer failed: {e}")
+            cleanup()
 
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
     tk.Button(root, text="Send File", command=send_file).pack(pady=5)
@@ -246,19 +268,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     try:
         root.mainloop()
     finally:
-        conn.close()
-        tor.close()
-        secure_wipe(session_key)
-        secure_wipe(ecdh_private_key.private_bytes(
-            serialization.Encoding.Raw,
-            serialization.PrivateFormat.Raw,
-            serialization.NoEncryption(),
-        ))
-        if public_key_file == "temp_public_key.pem" and os.path.exists(public_key_file):
-            try:
-                os.remove(public_key_file)
-            except Exception:
-                pass
+        cleanup()
 
 
 def client_b_setup(args):
