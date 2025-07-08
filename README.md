@@ -148,6 +148,13 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
      pyinstaller --onefile --windowed -m onionchat.client_b_main
      ```
      This creates `dist/client_b_main` (`client_b.exe` on Windows).
+
+For a one-step build you can run:
+```bash
+bash compile.sh
+```
+This script installs dependencies, compiles the optional C extension, and places the executables in `dist/`.
+
    - Pass `--windowed` (or `--noconsole` on Windows) to hide the command prompt
      and launch the GUI directly.
 3. **Platform-Specific Notes**:
