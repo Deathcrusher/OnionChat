@@ -324,6 +324,11 @@ def setup_hidden_service(port: int, use_stem: bool = False):
                     tor_path = path
                     break
 
+    # Fall back to the 'tor' executable if no path was found. ``stem`` expects a
+    # string path and will raise a ``TypeError`` if ``None`` is provided.
+    if tor_path is None:
+        tor_path = "tor"
+
     try:
         try:
             ctrl = Controller.from_port()
