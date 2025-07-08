@@ -125,14 +125,16 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 2. **Compile the Binaries**:
    - Build Client A:
      ```bash
-     pyinstaller --onefile -m onionchat.client_a_main
+     pyinstaller --onefile --windowed -m onionchat.client_a_main
      ```
      This creates `dist/client_a_main` (`client_a.exe` on Windows).
    - Build Client B:
      ```bash
-     pyinstaller --onefile -m onionchat.client_b_main
+     pyinstaller --onefile --windowed -m onionchat.client_b_main
      ```
      This creates `dist/client_b_main` (`client_b.exe` on Windows).
+   - Pass `--windowed` (or `--noconsole` on Windows) to hide the command prompt
+     and launch the GUI directly.
 3. **Platform-Specific Notes**:
    - **Linux** 🐧:
      - Requires `python3-tk` for Tkinter (e.g., `sudo apt install python3-tk`).
