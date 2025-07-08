@@ -2,7 +2,9 @@
 """Entry point and CLI for OnionChat."""
 import argparse
 import importlib
-import sys
+
+from onionchat.client_a import client_a_main
+from onionchat.client_b import client_b_setup
 
 # Required and optional dependencies
 REQUIRED_PKGS = ["torpy", "cryptography"]
@@ -31,17 +33,31 @@ def check_dependencies():
             "Install them with `pip install -r requirements.txt`."
         )
 
-from onionchat.client_a import client_a_main
-from onionchat.client_b import client_b_setup
-
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Secure Chat Messenger with GUI")
-    parser.add_argument("mode", choices=["client_a", "client_b"], help="Run as client_a or client_b")
-    parser.add_argument("--port", type=int, default=12345, help="Port for hidden service")
-    parser.add_argument("--timeout", type=int, default=600, help="Session timeout in seconds")
-    parser.add_argument("--padding", type=int, default=1024, help="Message padding length")
-    parser.add_argument("--max-file-size", type=int, default=100, help="Maximum file size in MB")
+    parser = argparse.ArgumentParser(
+        description="Secure Chat Messenger with GUI"
+    )
+    parser.add_argument(
+        "mode",
+        choices=["client_a", "client_b"],
+        help="Run as client_a or client_b",
+    )
+    parser.add_argument(
+        "--port", type=int, default=12345, help="Port for hidden service"
+    )
+    parser.add_argument(
+        "--timeout", type=int, default=600, help="Session timeout in seconds"
+    )
+    parser.add_argument(
+        "--padding", type=int, default=1024, help="Message padding length"
+    )
+    parser.add_argument(
+        "--max-file-size",
+        type=int,
+        default=100,
+        help="Maximum file size in MB",
+    )
     parser.add_argument(
         "--tor-impl",
         choices=["torpy", "stem"],
@@ -62,6 +78,7 @@ if __name__ == "__main__":
     else:
         if args.onion and args.session and args.key:
             from onionchat import client_b as _client_b
+
             _client_b.client_b_main(args.onion, args.session, args.key, args)
         else:
             client_b_setup(args)
