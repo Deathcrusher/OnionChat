@@ -1,5 +1,9 @@
 # OnionChat 🧅💬
 
+<p align="center">
+  <img src="Logo/onionchat_logo.png" alt="OnionChat Logo" width="200" />
+</p>
+
 OnionChat is a secure, anonymous, one-time chat messenger built with Python. It leverages Tor hidden services for anonymity, RSA-4096 and ECDH (Curve25519) for key exchange with forward secrecy, AES-256-GCM for message encryption, and a user-friendly GUI with QR code-based credential sharing. Designed for private, ephemeral communication, OnionChat ensures no persistent data is stored, with a kill switch controlled by Client A to prevent reconnection. 🔒🚀
 
 ## Features 🌟
