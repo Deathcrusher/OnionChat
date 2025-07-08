@@ -2,6 +2,7 @@
 
 import argparse
 from onionchat.client_b import client_b_main, client_b_setup
+from onionchat.main import check_dependencies
 
 
 def parse_args(argv=None):
@@ -30,6 +31,7 @@ def parse_args(argv=None):
 
 def main(argv=None):
     """Entry point for the ``client-b`` console script."""
+    check_dependencies()
     args = parse_args(argv)
     if args.onion and args.session and args.key:
         client_b_main(args.onion, args.session, args.key, args)
@@ -38,6 +40,7 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    check_dependencies()
     args = parse_args()
     if args.onion and args.session and args.key:
         client_b_main(args.onion, args.session, args.key, args)

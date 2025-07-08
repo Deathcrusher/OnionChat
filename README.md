@@ -13,7 +13,7 @@ OnionChat is a secure, anonymous, one-time chat messenger built with Python. It 
 - **One-Time Sessions** ⏳: Ephemeral sessions with no message storage and reconnection prevention.
 - **Kill Switch** 🛑: Client A can terminate the session with a signed message, ensuring control.
 - **QR Code Sharing** 📷: Encrypted QR codes (with passphrase) for secure sharing of onion address, session ID, and public key.
-- **GUI Interface** 🖥️: Modern PyQt6 GUI for intuitive chat and setup, with integrated QR code scanning and display.
+- **GUI Interface** 🖥️: Both clients now use a modern PyQt6 interface for intuitive chat and setup, with integrated QR code scanning and display.
 - **Message Padding** 📏: Fixed-length messages to prevent metadata leakage.
 - **Secure File Transfer** 📁: Transfer files over the encrypted session.
 - **File Size Limit** 📦: Configurable maximum file size (default 100 MB) to avoid abuse.
@@ -36,8 +36,8 @@ pip install -r requirements.txt
 
 All dependencies must be installed before running OnionChat. The requirements
 now include `stem`, allowing the client to start Tor automatically if no Tor
-process is running. If `stem` is missing at runtime, OnionChat will attempt to
-install it for you.
+process is running. If any required package (including `stem`) is missing at
+runtime, OnionChat will try to install it automatically.
 
 ### Install via `pip`
 If you prefer using `pip`, the project can be installed as a package after cloning:
@@ -116,6 +116,8 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
   ```bash
   pip install pyinstaller
   ```
+  If the `pyinstaller` command is not in your `PATH`, invoke it with
+  `python -m PyInstaller`.
 - Ensure a graphical environment is available on the target platform.
 
 ### Compilation Steps 🛠️

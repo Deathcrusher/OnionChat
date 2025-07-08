@@ -1,6 +1,7 @@
 import os
 import sys
 import importlib
+import subprocess
 import types
 import pytest
 
@@ -23,5 +24,6 @@ def test_check_dependencies_failure(monkeypatch):
         return original_import(name, package)
 
     monkeypatch.setattr(importlib, "import_module", fake_import)
+    monkeypatch.setattr(subprocess, "check_call", lambda *a, **k: None)
     with pytest.raises(RuntimeError):
         check_dependencies()

@@ -2,12 +2,14 @@
 """Entry point and CLI for OnionChat."""
 import argparse
 import importlib
+import subprocess
+import sys
 
 from onionchat.client_a import client_a_main
 from onionchat.client_b import client_b_setup
 
 # Required and optional dependencies
-REQUIRED_PKGS = ["torpy", "cryptography"]
+REQUIRED_PKGS = ["stem", "torpy", "cryptography"]
 OPTIONAL_PKGS = [
     "qrcode",
     "pyzbar",
@@ -27,11 +29,16 @@ def check_dependencies():
         except Exception:
             missing.append(pkg)
     if missing:
-        deps = ", ".join(missing)
-        raise RuntimeError(
-            f"Missing required packages: {deps}. "
-            "Install them with `pip install -r requirements.txt`."
-        )
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
+            for pkg in missing:
+                importlib.import_module(pkg.split("-")[0])
+        except Exception as exc:
+            deps = ", ".join(missing)
+            raise RuntimeError(
+                f"Missing required packages: {deps}. "
+                "Install them with `pip install -r requirements.txt`."
+            ) from exc
 
 
 def parse_args():
