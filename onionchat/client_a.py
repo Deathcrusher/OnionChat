@@ -103,19 +103,17 @@ def client_a_main(args):
             progress.stop()
             progress.pack_forget()
             status.config(text="Tor started")
-            return continue_setup(*tor_data["result"])
-        if "error" in tor_data:
+            continue_setup(*tor_data["result"])
+        elif "error" in tor_data:
             progress.stop()
             progress.pack_forget()
-            _call_in_main(
-                root,
-                messagebox.showerror,
+            messagebox.showerror(
                 "Error",
                 f"Failed to create hidden service: {tor_data['error']}",
             )
             root.destroy()
-            return
-        root.after(100, wait_for_tor)
+        else:
+            root.after(100, wait_for_tor)
 
     def continue_setup(tor, onion, onion_hostname):
         session_id = os.urandom(32).hex()

@@ -160,21 +160,43 @@ def client_b_main(
 
     try:
         if use_stem and Controller is not None and socks is not None:
-            tor = Controller.from_port()
-            tor.authenticate()
-            conn = socks.socksocket()
-            conn.set_proxy(socks.SOCKS5, "127.0.0.1", 9050)
-            conn.connect((onion_hostname, 80))
+            try:
+                tor = Controller.from_port()
+                tor.authenticate()
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Failed to connect to Tor controller: {e}",
+                )
+                cleanup()
+                return
+            try:
+                conn = socks.socksocket()
+                conn.set_proxy(socks.SOCKS5, "127.0.0.1", 9050)
+                conn.connect((onion_hostname, 80))
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Failed to connect to Tor SOCKS proxy: {e}",
+                )
+                cleanup()
+                return
         else:
-            tor = TorClient()
-            conn = tor.connect(onion_hostname, 80)
+            try:
+                tor = TorClient()
+                conn = tor.connect(onion_hostname, 80)
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Failed to connect to Tor service via Torpy: {e}",
+                )
+                cleanup()
+                return
         status.config(text="Connected")
     except Exception as e:
-        _call_in_main(
-            root,
-            messagebox.showerror,
+        messagebox.showerror(
             "Error",
-            f"Failed to connect to Tor service: {e}",
+            f"An unexpected error occurred during Tor connection: {e}",
         )
         cleanup()
         return
@@ -444,7 +466,7 @@ def client_b_setup(args):
 
     tk.Label(root, text="Public Key File:").pack(pady=5)
     key_entry = tk.Entry(root, width=50)
-    key_entry.insert(0, args.key if hasattr(args, "key") else "")
+    key_entry.insert(0, str(args.key) if hasattr(args, "key") else "")
     key_entry.pack(pady=5)
 
     def browse_file():

@@ -191,7 +191,10 @@ def generate_qr_code(
     )
     qr_data = f"{salt.hex()}:{nonce.hex()}:{ct.hex()}:{tag.hex()}"
     if pyperclip:
-        pyperclip.copy(qr_data)
+        try:
+            pyperclip.copy(qr_data)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to copy QR data to clipboard: {e}")
     if qrcode:
         qr = qrcode.QRCode()
         qr.add_data(qr_data)
@@ -303,6 +306,23 @@ def setup_hidden_service(port: int, use_stem: bool = False):
             ) from e
 
     tor_process = None
+    tor_path = os.environ.get("TOR_PATH")
+    if not tor_path:
+        # Look for bundled Tor executable
+        bundled_tor_path = os.path.join(os.path.dirname(__file__), '..', 'tor_files', 'tor-expert-bundle-windows-x86_64-14.5.4', 'Tor', 'tor.exe')
+        if os.path.exists(bundled_tor_path):
+            tor_path = bundled_tor_path
+        elif os.name == "nt":
+            # Common locations for Tor Browser on Windows
+            possible_paths = [
+                os.path.expanduser("~/Desktop/Tor Browser/Browser/TorBrowser/tor.exe"),
+                "C:\Program Files\Tor Browser\Browser\TorBrowser\tor.exe",
+                "C:\Tor Browser\Browser\TorBrowser\tor.exe",
+            ]
+            for path in possible_paths:
+                if os.path.exists(path):
+                    tor_path = path
+                    break
 
     try:
         try:
@@ -310,13 +330,15 @@ def setup_hidden_service(port: int, use_stem: bool = False):
             ctrl.authenticate()
         except Exception:
             tor_process = launch_tor_with_config(
-                {"ControlPort": "9051", "SOCKSPort": "9050"}
+                config={"ControlPort": "9051", "SOCKSPort": "9050"},
+                tor_cmd=tor_path,  # Can be None
+                
             )
             ctrl = Controller.from_port()
             ctrl.authenticate()
 
         hs = ctrl.create_ephemeral_hidden_service(
-            {80: port}, await_publication=True
+            {80: port}, await_publication=True, timeout=60
         )
 
         class _Service:

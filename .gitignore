@@ -6,3 +6,10 @@ build/
 build.log
 .pytest_cache/
 _wiper.cpython-*.so
+client_a.spec
+client_a_main.spec
+client_b.spec
+client_b_main.spec
+dist/
+onionchat.egg-info/
+tor_files/
