@@ -1,4 +1,5 @@
 """GUI and logic for hosting an OnionChat session (Client A)."""
+
 import os
 import socket
 import threading
@@ -9,7 +10,11 @@ from tkinter import filedialog, messagebox
 from tkinter.scrolledtext import ScrolledText
 from queue import Queue
 
-from cryptography.hazmat.primitives import hashes, padding as asym_padding, serialization
+from cryptography.hazmat.primitives import (
+    hashes,
+    padding as asym_padding,
+    serialization,
+)
 from cryptography.hazmat.primitives import constant_time
 
 from .chat_utils import (
@@ -67,7 +72,9 @@ def client_a_main(args):
     root.title("Client A - Secure Chat")
     root.geometry("600x400")
 
-    rsa_private, _, rsa_public_bytes, ecdh_private, ecdh_public_bytes = generate_keys()
+    rsa_private, _, rsa_public_bytes, ecdh_private, ecdh_public_bytes = (
+        generate_keys()
+    )
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as tmp:
         tmp.write(rsa_public_bytes)
         public_key_path = tmp.name
@@ -76,14 +83,23 @@ def client_a_main(args):
     status.pack(pady=5)
     root.update()
     try:
-        tor, onion, onion_hostname = setup_hidden_service(args.port, args.tor_impl == "stem")
+        tor, onion, onion_hostname = setup_hidden_service(
+            args.port, args.tor_impl == "stem"
+        )
         status.config(text="Tor started")
     except Exception as e:
-        _call_in_main(root, messagebox.showerror, "Error", f"Failed to create hidden service: {e}")
+        _call_in_main(
+            root,
+            messagebox.showerror,
+            "Error",
+            f"Failed to create hidden service: {e}",
+        )
         root.destroy()
         return
     session_id = os.urandom(32).hex()
-    qr_data = generate_qr_code(onion_hostname, session_id, rsa_public_bytes, root)
+    qr_data = generate_qr_code(
+        onion_hostname, session_id, rsa_public_bytes, root
+    )
 
     info_label = tk.Label(
         root,
@@ -98,8 +114,14 @@ def client_a_main(args):
 
     def copy_qr_data():
         from pyperclip import copy
+
         copy(qr_data)
-        _call_in_main(root, messagebox.showinfo, "Info", "QR code data copied to clipboard")
+        _call_in_main(
+            root,
+            messagebox.showinfo,
+            "Info",
+            "QR code data copied to clipboard",
+        )
 
     tk.Button(root, text="Copy QR Data", command=copy_qr_data).pack(pady=5)
 
@@ -121,7 +143,7 @@ def client_a_main(args):
     cleanup_called = False
 
     def cleanup():
-        nonlocal cleanup_called, conn, server, onion, tor, session_key
+        nonlocal cleanup_called
         if cleanup_called:
             return
         cleanup_called = True
@@ -181,31 +203,59 @@ def client_a_main(args):
                     nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
                     if receiving_file:
                         try:
-                            chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                            chunk = decrypt_bytes(
+                                nonce, ciphertext, tag, session_key
+                            )
                             file_buffer += chunk
                             if len(file_buffer) >= file_size:
-                                save_path = _call_in_main(root, filedialog.asksaveasfilename, initialfile=file_name)
+                                save_path = _call_in_main(
+                                    root,
+                                    filedialog.asksaveasfilename,
+                                    initialfile=file_name,
+                                )
                                 if save_path:
                                     with open(save_path, "wb") as f:
                                         f.write(file_buffer[:file_size])
-                                _call_in_main(chat_display, chat_display.config, state="normal")
-                                _call_in_main(chat_display, chat_display.insert, tk.END, f"Received file: {file_name}\n")
-                                _call_in_main(chat_display, chat_display.config, state="disabled")
-                                _call_in_main(chat_display, chat_display.yview, tk.END)
+                                _call_in_main(
+                                    chat_display,
+                                    chat_display.config,
+                                    state="normal",
+                                )
+                                _call_in_main(
+                                    chat_display,
+                                    chat_display.insert,
+                                    tk.END,
+                                    f"Received file: {file_name}\n",
+                                )
+                                _call_in_main(
+                                    chat_display,
+                                    chat_display.config,
+                                    state="disabled",
+                                )
+                                _call_in_main(
+                                    chat_display, chat_display.yview, tk.END
+                                )
                                 receiving_file = False
                                 file_buffer = b""
                                 file_name = ""
                                 file_size = 0
                             continue
                         except Exception as e:
-                            _call_in_main(root, messagebox.showerror, "Error", f"File transfer failed: {e}")
+                            _call_in_main(
+                                root,
+                                messagebox.showerror,
+                                "Error",
+                                f"File transfer failed: {e}",
+                            )
                             receiving_file = False
                             file_buffer = b""
                             file_name = ""
                             file_size = 0
                             continue
                     try:
-                        message = decrypt_message(nonce, ciphertext, tag, session_key)
+                        message = decrypt_message(
+                            nonce, ciphertext, tag, session_key
+                        )
                         if message.startswith("FILE_TRANSFER_START:"):
                             try:
                                 _, fname, fsize = message.split(":", 2)
@@ -214,7 +264,12 @@ def client_a_main(args):
                                 file_buffer = b""
                                 receiving_file = True
                             except Exception as e:
-                                _call_in_main(root, messagebox.showerror, "Error", f"Invalid file header: {e}")
+                                _call_in_main(
+                                    root,
+                                    messagebox.showerror,
+                                    "Error",
+                                    f"Invalid file header: {e}",
+                                )
                             continue
                         elif message == "FILE_TRANSFER_END":
                             receiving_file = False
@@ -222,12 +277,26 @@ def client_a_main(args):
                             file_name = ""
                             file_size = 0
                             continue
-                        _call_in_main(chat_display, chat_display.config, state="normal")
-                        _call_in_main(chat_display, chat_display.insert, tk.END, f"Client B: {message}\n")
-                        _call_in_main(chat_display, chat_display.config, state="disabled")
+                        _call_in_main(
+                            chat_display, chat_display.config, state="normal"
+                        )
+                        _call_in_main(
+                            chat_display,
+                            chat_display.insert,
+                            tk.END,
+                            f"Client B: {message}\n",
+                        )
+                        _call_in_main(
+                            chat_display, chat_display.config, state="disabled"
+                        )
                         _call_in_main(chat_display, chat_display.yview, tk.END)
                     except Exception as e:
-                        _call_in_main(root, messagebox.showerror, "Error", f"Decryption failed: {e}")
+                        _call_in_main(
+                            root,
+                            messagebox.showerror,
+                            "Error",
+                            f"Decryption failed: {e}",
+                        )
                 except Exception:
                     break
         finally:
@@ -259,15 +328,21 @@ def client_a_main(args):
             terminate_session()
             return
         try:
-            nonce, ciphertext, tag = encrypt_message(message, session_key, args.padding)
+            nonce, ciphertext, tag = encrypt_message(
+                message, session_key, args.padding
+            )
             _send_packet(conn, nonce + tag + ciphertext)
             _call_in_main(chat_display, chat_display.config, state="normal")
-            _call_in_main(chat_display, chat_display.insert, tk.END, f"You: {message}\n")
+            _call_in_main(
+                chat_display, chat_display.insert, tk.END, f"You: {message}\n"
+            )
             _call_in_main(chat_display, chat_display.config, state="disabled")
             _call_in_main(chat_display, chat_display.yview, tk.END)
             last_activity = time.time()
         except Exception as e:
-            _call_in_main(root, messagebox.showerror, "Error", f"Encryption failed: {e}")
+            _call_in_main(
+                root, messagebox.showerror, "Error", f"Encryption failed: {e}"
+            )
             cleanup()
         finally:
             message_entry.delete(0, tk.END)
@@ -278,29 +353,48 @@ def client_a_main(args):
         if not file_path or not os.path.isfile(file_path):
             return
         if os.path.getsize(file_path) > args.max_file_size * 1024 * 1024:
-            _call_in_main(root, messagebox.showerror, "Error", f"File exceeds {args.max_file_size} MB limit")
+            _call_in_main(
+                root,
+                messagebox.showerror,
+                "Error",
+                f"File exceeds {args.max_file_size} MB limit",
+            )
             return
         try:
             with open(file_path, "rb") as f:
                 data = f.read()
             filename = os.path.basename(file_path)
             header = f"FILE_TRANSFER_START:{filename}:{len(data)}"
-            nonce, ciphertext, tag = encrypt_message(header, session_key, args.padding)
+            nonce, ciphertext, tag = encrypt_message(
+                header, session_key, args.padding
+            )
             _send_packet(conn, nonce + tag + ciphertext)
             chunk_size = 2048
             for i in range(0, len(data), chunk_size):
-                chunk = data[i : i + chunk_size]
+                chunk = data[i:i + chunk_size]
                 n, c, t = encrypt_bytes(chunk, session_key)
                 _send_packet(conn, n + t + c)
-            nonce, ciphertext, tag = encrypt_message("FILE_TRANSFER_END", session_key, args.padding)
+            nonce, ciphertext, tag = encrypt_message(
+                "FILE_TRANSFER_END", session_key, args.padding
+            )
             _send_packet(conn, nonce + tag + ciphertext)
             _call_in_main(chat_display, chat_display.config, state="normal")
-            _call_in_main(chat_display, chat_display.insert, tk.END, f"Sent file: {filename}\n")
+            _call_in_main(
+                chat_display,
+                chat_display.insert,
+                tk.END,
+                f"Sent file: {filename}\n",
+            )
             _call_in_main(chat_display, chat_display.config, state="disabled")
             _call_in_main(chat_display, chat_display.yview, tk.END)
             last_activity = time.time()
         except Exception as e:
-            _call_in_main(root, messagebox.showerror, "Error", f"File transfer failed: {e}")
+            _call_in_main(
+                root,
+                messagebox.showerror,
+                "Error",
+                f"File transfer failed: {e}",
+            )
             cleanup()
 
     def check_timeout():
@@ -317,7 +411,9 @@ def client_a_main(args):
                 _send_packet(conn, signature)
             except Exception:
                 pass
-            _call_in_main(root, messagebox.showinfo, "Info", "Session timed out")
+            _call_in_main(
+                root, messagebox.showinfo, "Info", "Session timed out"
+            )
             cleanup()
             return
         root.after(1000, check_timeout)
@@ -335,8 +431,12 @@ def client_a_main(args):
             return
         try:
             received_session_id = _recv_exact(conn, len(session_id)).decode()
-            if not constant_time.bytes_eq(received_session_id.encode(), session_id.encode()):
-                _call_in_main(root, messagebox.showerror, "Error", "Invalid session ID")
+            if not constant_time.bytes_eq(
+                received_session_id.encode(), session_id.encode()
+            ):
+                _call_in_main(
+                    root, messagebox.showerror, "Error", "Invalid session ID"
+                )
                 cleanup()
                 return
 
@@ -352,7 +452,12 @@ def client_a_main(args):
                 )
                 session_key = derive_session_key(ecdh_private, ecdh_peer_bytes)
             except Exception as e:
-                _call_in_main(root, messagebox.showerror, "Error", f"Key exchange failed: {e}")
+                _call_in_main(
+                    root,
+                    messagebox.showerror,
+                    "Error",
+                    f"Key exchange failed: {e}",
+                )
                 cleanup()
                 return
 
@@ -360,7 +465,9 @@ def client_a_main(args):
             threading.Thread(target=receive_messages, daemon=True).start()
             root.after(1000, check_timeout)
         except Exception as e:
-            _call_in_main(root, messagebox.showerror, "Error", f"Connection failed: {e}")
+            _call_in_main(
+                root, messagebox.showerror, "Error", f"Connection failed: {e}"
+            )
             cleanup()
             return
 

@@ -1,4 +1,9 @@
-"""Shared utilities for OnionChat including crypto operations, QR code handling, and Tor hidden service setup."""
+"""Shared utilities for OnionChat.
+
+This module provides crypto operations, QR code handling and Tor hidden service
+setup helpers.
+"""
+
 import os
 import secrets
 import tkinter as tk
@@ -134,10 +139,14 @@ def decrypt_bytes(nonce: bytes, ct: bytes, tag: bytes, key: bytes) -> bytes:
     return dec.update(ct) + dec.finalize()
 
 
-def encrypt_qr_data(onion: str, session_id: str, rsa_bytes: bytes, passphrase: str):
+def encrypt_qr_data(
+    onion: str, session_id: str, rsa_bytes: bytes, passphrase: str
+):
     """Encrypt connection info for QR code transfer."""
     salt = secrets.token_bytes(16)
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000
+    )
     key = kdf.derive(passphrase.encode())
     payload = f"{onion}|{session_id}|{rsa_bytes.decode()}".encode()
     nonce = secrets.token_bytes(12)
@@ -147,9 +156,13 @@ def encrypt_qr_data(onion: str, session_id: str, rsa_bytes: bytes, passphrase: s
     return salt, nonce, ct, enc.tag
 
 
-def decrypt_qr_data(salt: bytes, nonce: bytes, ct: bytes, tag: bytes, passphrase: str):
+def decrypt_qr_data(
+    salt: bytes, nonce: bytes, ct: bytes, tag: bytes, passphrase: str
+):
     """Decrypt QR code data using the provided passphrase."""
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000
+    )
     key = kdf.derive(passphrase.encode())
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag))
     dec = cipher.decryptor()
@@ -158,8 +171,13 @@ def decrypt_qr_data(salt: bytes, nonce: bytes, ct: bytes, tag: bytes, passphrase
     return onion, session_id, pub.encode()
 
 
-def generate_qr_code(onion: str, session_id: str, rsa_bytes: bytes, root: tk.Tk) -> str:
-    """Generate and optionally display a QR code containing encrypted connection info."""
+def generate_qr_code(
+    onion: str, session_id: str, rsa_bytes: bytes, root: tk.Tk
+) -> str:
+    """Generate and optionally display a QR code.
+
+    The QR code contains encrypted connection info.
+    """
     passphrase = simpledialog.askstring(
         "Input",
         "Enter passphrase for QR code encryption",
@@ -168,7 +186,9 @@ def generate_qr_code(onion: str, session_id: str, rsa_bytes: bytes, root: tk.Tk)
     )
     if not passphrase:
         raise ValueError("Passphrase required")
-    salt, nonce, ct, tag = encrypt_qr_data(onion, session_id, rsa_bytes, passphrase)
+    salt, nonce, ct, tag = encrypt_qr_data(
+        onion, session_id, rsa_bytes, passphrase
+    )
     qr_data = f"{salt.hex()}:{nonce.hex()}:{ct.hex()}:{tag.hex()}"
     if pyperclip:
         pyperclip.copy(qr_data)
@@ -200,7 +220,9 @@ def scan_qr_code(root: tk.Tk):
                 cap.release()
                 cv2.destroyAllWindows()
                 try:
-                    salt, nonce, ct, tag = [bytes.fromhex(x) for x in qr_data.split(":")]
+                    salt, nonce, ct, tag = [
+                        bytes.fromhex(x) for x in qr_data.split(":")
+                    ]
                     passphrase = simpledialog.askstring(
                         "Input",
                         "Enter passphrase for QR code decryption",
@@ -211,21 +233,27 @@ def scan_qr_code(root: tk.Tk):
                         return None, None, None
                     return decrypt_qr_data(salt, nonce, ct, tag, passphrase)
                 except Exception:
-                    messagebox.showerror("Error", "Invalid QR code or passphrase")
+                    messagebox.showerror(
+                        "Error", "Invalid QR code or passphrase"
+                    )
                     return None, None, None
             cv2.imshow("QR Code Scanner", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
         cap.release()
         cv2.destroyAllWindows()
-    qr_file = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg")])
+    qr_file = filedialog.askopenfilename(
+        filetypes=[("Image files", "*.png *.jpg")]
+    )
     if qr_file:
         img = cv2.imread(qr_file)
         codes = decode(img)
         if codes:
             qr_data = codes[0].data.decode()
             try:
-                salt, nonce, ct, tag = [bytes.fromhex(x) for x in qr_data.split(":")]
+                salt, nonce, ct, tag = [
+                    bytes.fromhex(x) for x in qr_data.split(":")
+                ]
                 passphrase = simpledialog.askstring(
                     "Input",
                     "Enter passphrase for QR code decryption",
@@ -243,16 +271,16 @@ def scan_qr_code(root: tk.Tk):
 def setup_hidden_service(port: int, use_stem: bool = False):
     """Create a Tor hidden service using ``stem``.
 
-    If a Tor control connection cannot be established, the function will attempt
-    to start a Tor process automatically using ``stem.process``. It also tries to
-    install ``stem`` on the fly if the module is missing. This provides a best
-    effort approach so users do not need to start Tor manually.
+    If a Tor control connection cannot be established, the function tries to
+    start a Tor process automatically using ``stem.process``. It also attempts
+    to install ``stem`` on the fly if the module is missing. This provides a
+    best effort so users do not need to start Tor manually.
     """
     use_stem = use_stem or os.environ.get("ONIONCHAT_USE_STEM") == "1"
 
     if not use_stem:
         raise RuntimeError(
-            "torpy does not support creating hidden services; use --tor-impl stem"
+            "torpy does not support hidden services; use --tor-impl stem"
         )
 
     # Attempt to import required stem modules, installing them if necessary.
@@ -261,13 +289,18 @@ def setup_hidden_service(port: int, use_stem: bool = False):
         from stem.process import launch_tor_with_config  # type: ignore
     except Exception:  # pragma: no cover - network dependency
         try:
-            import subprocess, sys
+            import subprocess
+            import sys
 
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "stem"])
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "stem"]
+            )
             from stem.control import Controller  # type: ignore
             from stem.process import launch_tor_with_config  # type: ignore
         except Exception as e:  # pragma: no cover - network dependency
-            raise RuntimeError("stem is required to create hidden services") from e
+            raise RuntimeError(
+                "stem is required to create hidden services"
+            ) from e
 
     tor_process = None
 
@@ -276,11 +309,15 @@ def setup_hidden_service(port: int, use_stem: bool = False):
             ctrl = Controller.from_port()
             ctrl.authenticate()
         except Exception:
-            tor_process = launch_tor_with_config({"ControlPort": "9051", "SOCKSPort": "9050"})
+            tor_process = launch_tor_with_config(
+                {"ControlPort": "9051", "SOCKSPort": "9050"}
+            )
             ctrl = Controller.from_port()
             ctrl.authenticate()
 
-        hs = ctrl.create_ephemeral_hidden_service({80: port}, await_publication=True)
+        hs = ctrl.create_ephemeral_hidden_service(
+            {80: port}, await_publication=True
+        )
 
         class _Service:
             def __init__(self, controller, service_id, process):
@@ -290,7 +327,9 @@ def setup_hidden_service(port: int, use_stem: bool = False):
 
             def close(self):  # pragma: no cover - cleanup code
                 try:
-                    self.controller.remove_ephemeral_hidden_service(self.service_id)
+                    self.controller.remove_ephemeral_hidden_service(
+                        self.service_id
+                    )
                 finally:
                     try:
                         self.controller.close()
@@ -301,7 +340,11 @@ def setup_hidden_service(port: int, use_stem: bool = False):
                             except Exception:
                                 pass
 
-        return ctrl, _Service(ctrl, hs.service_id, tor_process), f"{hs.service_id}.onion"
+        return (
+            ctrl,
+            _Service(ctrl, hs.service_id, tor_process),
+            f"{hs.service_id}.onion",
+        )
     except Exception as e:  # pragma: no cover - network dependency
         if tor_process:
             try:

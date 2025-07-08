@@ -1,4 +1,5 @@
 """GUI for connecting to an OnionChat session as Client B."""
+
 import os
 import socket
 import threading
@@ -8,7 +9,10 @@ from tkinter.scrolledtext import ScrolledText
 from queue import Queue
 
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding as asym_padding, x25519
+from cryptography.hazmat.primitives.asymmetric import (
+    padding as asym_padding,
+    x25519,
+)
 
 from .chat_utils import (
     derive_session_key,
@@ -68,8 +72,10 @@ def _recv_packet(sock: socket.socket) -> bytes:
     return _recv_exact(sock, length)
 
 
-def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, args):
-    """Connect to Client A using the supplied credentials and start the chat."""
+def client_b_main(
+    onion_hostname: str, session_id: str, public_key_file: str, args
+):
+    """Connect to Client A using the supplied credentials."""
     root = tk.Tk()
     root.title("Client B - Secure Chat")
     root.geometry("600x400")
@@ -79,8 +85,15 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             rsa_public_bytes = f.read()
         rsa_public_key = serialization.load_pem_public_key(rsa_public_bytes)
     except Exception as e:
-        _call_in_main(root, messagebox.showerror, "Error", f"Failed to load public key: {e}")
-        secure_wipe(rsa_public_bytes if 'rsa_public_bytes' in locals() else b'')
+        _call_in_main(
+            root,
+            messagebox.showerror,
+            "Error",
+            f"Failed to load public key: {e}",
+        )
+        secure_wipe(
+            rsa_public_bytes if "rsa_public_bytes" in locals() else b""
+        )
         root.destroy()
         return
 
@@ -101,14 +114,16 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
     status = tk.Label(root, text="Connecting to Tor service...")
     status.pack(pady=5)
     root.update()
-    use_stem = args.tor_impl == "stem" or os.environ.get("ONIONCHAT_USE_STEM") == "1"
+    use_stem = (
+        args.tor_impl == "stem" or os.environ.get("ONIONCHAT_USE_STEM") == "1"
+    )
     tor = None
     conn = None
     session_key = None
     cleanup_called = False
 
     def cleanup():
-        nonlocal cleanup_called, conn, tor, session_key
+        nonlocal cleanup_called
         if cleanup_called:
             return
         cleanup_called = True
@@ -131,7 +146,9 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                 serialization.NoEncryption(),
             )
         )
-        if public_key_file == "temp_public_key.pem" and os.path.exists(public_key_file):
+        if public_key_file == "temp_public_key.pem" and os.path.exists(
+            public_key_file
+        ):
             try:
                 os.remove(public_key_file)
             except Exception:
@@ -140,6 +157,7 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             root.destroy()
         except Exception:
             pass
+
     try:
         if use_stem and Controller is not None and socks is not None:
             tor = Controller.from_port()
@@ -152,7 +170,12 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
             conn = tor.connect(onion_hostname, 80)
         status.config(text="Connected")
     except Exception as e:
-        _call_in_main(root, messagebox.showerror, "Error", f"Failed to connect to Tor service: {e}")
+        _call_in_main(
+            root,
+            messagebox.showerror,
+            "Error",
+            f"Failed to connect to Tor service: {e}",
+        )
         cleanup()
         return
 
@@ -162,7 +185,12 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         ecdh_peer_bytes = _recv_exact(conn, 32)
         session_key = derive_session_key(ecdh_private_key, ecdh_peer_bytes)
     except Exception as e:
-        _call_in_main(root, messagebox.showerror, "Error", f"Session key derivation failed: {e}")
+        _call_in_main(
+            root,
+            messagebox.showerror,
+            "Error",
+            f"Session key derivation failed: {e}",
+        )
         cleanup()
         return
 
@@ -192,38 +220,77 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                                 salt_length=asym_padding.PSS.MAX_LENGTH,
                             ),
                         )
-                        _call_in_main(root, messagebox.showinfo, "Info", "Session terminated by Client A")
+                        _call_in_main(
+                            root,
+                            messagebox.showinfo,
+                            "Info",
+                            "Session terminated by Client A",
+                        )
                         cleanup()
                         return
                     except Exception:
-                        nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+                        nonce, tag, ciphertext = (
+                            data[:12],
+                            data[12:28],
+                            data[28:],
+                        )
                         if receiving_file:
                             try:
-                                chunk = decrypt_bytes(nonce, ciphertext, tag, session_key)
+                                chunk = decrypt_bytes(
+                                    nonce, ciphertext, tag, session_key
+                                )
                                 file_buffer += chunk
                                 if len(file_buffer) >= file_size:
-                                    save_path = _call_in_main(root, filedialog.asksaveasfilename, initialfile=file_name)
+                                    save_path = _call_in_main(
+                                        root,
+                                        filedialog.asksaveasfilename,
+                                        initialfile=file_name,
+                                    )
                                     if save_path:
                                         with open(save_path, "wb") as f:
                                             f.write(file_buffer[:file_size])
-                                    _call_in_main(chat_display, chat_display.config, state="normal")
-                                    _call_in_main(chat_display, chat_display.insert, tk.END, f"Received file: {file_name}\n")
-                                    _call_in_main(chat_display, chat_display.config, state="disabled")
-                                    _call_in_main(chat_display, chat_display.yview, tk.END)
+                                    _call_in_main(
+                                        chat_display,
+                                        chat_display.config,
+                                        state="normal",
+                                    )
+                                    _call_in_main(
+                                        chat_display,
+                                        chat_display.insert,
+                                        tk.END,
+                                        f"Received file: {file_name}\n",
+                                    )
+                                    _call_in_main(
+                                        chat_display,
+                                        chat_display.config,
+                                        state="disabled",
+                                    )
+                                    _call_in_main(
+                                        chat_display,
+                                        chat_display.yview,
+                                        tk.END,
+                                    )
                                     receiving_file = False
                                     file_buffer = b""
                                     file_name = ""
                                     file_size = 0
                                 continue
                             except Exception as e:
-                                _call_in_main(root, messagebox.showerror, "Error", f"File transfer failed: {e}")
+                                _call_in_main(
+                                    root,
+                                    messagebox.showerror,
+                                    "Error",
+                                    f"File transfer failed: {e}",
+                                )
                                 receiving_file = False
                                 file_buffer = b""
                                 file_name = ""
                                 file_size = 0
                                 continue
                         try:
-                            message = decrypt_message(nonce, ciphertext, tag, session_key)
+                            message = decrypt_message(
+                                nonce, ciphertext, tag, session_key
+                            )
                             if message.startswith("FILE_TRANSFER_START:"):
                                 try:
                                     _, fname, fsize = message.split(":", 2)
@@ -232,7 +299,12 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                                     file_buffer = b""
                                     receiving_file = True
                                 except Exception as e:
-                                    _call_in_main(root, messagebox.showerror, "Error", f"Invalid file header: {e}")
+                                    _call_in_main(
+                                        root,
+                                        messagebox.showerror,
+                                        "Error",
+                                        f"Invalid file header: {e}",
+                                    )
                                 continue
                             elif message == "FILE_TRANSFER_END":
                                 receiving_file = False
@@ -240,12 +312,32 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
                                 file_name = ""
                                 file_size = 0
                                 continue
-                            _call_in_main(chat_display, chat_display.config, state="normal")
-                            _call_in_main(chat_display, chat_display.insert, tk.END, f"Client A: {message}\n")
-                            _call_in_main(chat_display, chat_display.config, state="disabled")
-                            _call_in_main(chat_display, chat_display.yview, tk.END)
+                            _call_in_main(
+                                chat_display,
+                                chat_display.config,
+                                state="normal",
+                            )
+                            _call_in_main(
+                                chat_display,
+                                chat_display.insert,
+                                tk.END,
+                                f"Client A: {message}\n",
+                            )
+                            _call_in_main(
+                                chat_display,
+                                chat_display.config,
+                                state="disabled",
+                            )
+                            _call_in_main(
+                                chat_display, chat_display.yview, tk.END
+                            )
                         except Exception as e:
-                            _call_in_main(root, messagebox.showerror, "Error", f"Decryption failed: {e}")
+                            _call_in_main(
+                                root,
+                                messagebox.showerror,
+                                "Error",
+                                f"Decryption failed: {e}",
+                            )
                 except Exception:
                     break
         finally:
@@ -256,14 +348,23 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         if not message:
             return
         try:
-            nonce, ciphertext, tag = encrypt_message(message, session_key, args.padding)
+            nonce, ciphertext, tag = encrypt_message(
+                message, session_key, args.padding
+            )
             _send_packet(conn, nonce + tag + ciphertext)
             _call_in_main(chat_display, chat_display.config, state="normal")
-            _call_in_main(chat_display, chat_display.insert, tk.END, f"You: {message}\n")
+            _call_in_main(
+                chat_display, chat_display.insert, tk.END, f"You: {message}\n"
+            )
             _call_in_main(chat_display, chat_display.config, state="disabled")
             _call_in_main(chat_display, chat_display.yview, tk.END)
         except Exception as e:
-            _call_in_main(root, messagebox.showerror, "Error", f"Sending message failed: {e}")
+            _call_in_main(
+                root,
+                messagebox.showerror,
+                "Error",
+                f"Sending message failed: {e}",
+            )
             cleanup()
         finally:
             message_entry.delete(0, tk.END)
@@ -273,28 +374,47 @@ def client_b_main(onion_hostname: str, session_id: str, public_key_file: str, ar
         if not file_path or not os.path.isfile(file_path):
             return
         if os.path.getsize(file_path) > args.max_file_size * 1024 * 1024:
-            _call_in_main(root, messagebox.showerror, "Error", f"File exceeds {args.max_file_size} MB limit")
+            _call_in_main(
+                root,
+                messagebox.showerror,
+                "Error",
+                f"File exceeds {args.max_file_size} MB limit",
+            )
             return
         try:
             with open(file_path, "rb") as f:
                 data = f.read()
             filename = os.path.basename(file_path)
             header = f"FILE_TRANSFER_START:{filename}:{len(data)}"
-            nonce, ciphertext, tag = encrypt_message(header, session_key, args.padding)
+            nonce, ciphertext, tag = encrypt_message(
+                header, session_key, args.padding
+            )
             _send_packet(conn, nonce + tag + ciphertext)
             chunk_size = 2048
             for i in range(0, len(data), chunk_size):
-                chunk = data[i : i + chunk_size]
+                chunk = data[i:i + chunk_size]
                 n, c, t = encrypt_bytes(chunk, session_key)
                 _send_packet(conn, n + t + c)
-            nonce, ciphertext, tag = encrypt_message("FILE_TRANSFER_END", session_key, args.padding)
+            nonce, ciphertext, tag = encrypt_message(
+                "FILE_TRANSFER_END", session_key, args.padding
+            )
             _send_packet(conn, nonce + tag + ciphertext)
             _call_in_main(chat_display, chat_display.config, state="normal")
-            _call_in_main(chat_display, chat_display.insert, tk.END, f"Sent file: {filename}\n")
+            _call_in_main(
+                chat_display,
+                chat_display.insert,
+                tk.END,
+                f"Sent file: {filename}\n",
+            )
             _call_in_main(chat_display, chat_display.config, state="disabled")
             _call_in_main(chat_display, chat_display.yview, tk.END)
         except Exception as e:
-            _call_in_main(root, messagebox.showerror, "Error", f"File transfer failed: {e}")
+            _call_in_main(
+                root,
+                messagebox.showerror,
+                "Error",
+                f"File transfer failed: {e}",
+            )
             cleanup()
 
     tk.Button(root, text="Send", command=send_message).pack(pady=5)
@@ -346,7 +466,9 @@ def client_b_setup(args):
             key_entry.delete(0, tk.END)
             key_entry.insert(0, "temp_public_key.pem")
         else:
-            _call_in_main(root, messagebox.showerror, "Error", "Failed to scan QR code")
+            _call_in_main(
+                root, messagebox.showerror, "Error", "Failed to scan QR code"
+            )
 
     tk.Button(root, text="Scan QR Code", command=scan_and_fill).pack(pady=5)
 
@@ -355,7 +477,9 @@ def client_b_setup(args):
         session = session_entry.get()
         key_file = key_entry.get()
         if not (onion and session and key_file):
-            _call_in_main(root, messagebox.showerror, "Error", "All fields are required")
+            _call_in_main(
+                root, messagebox.showerror, "Error", "All fields are required"
+            )
             return
         root.destroy()
         client_b_main(onion, session, key_file, args)
