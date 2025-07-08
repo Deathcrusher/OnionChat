@@ -8,6 +8,20 @@ from tkinter import filedialog, messagebox
 from tkinter.scrolledtext import ScrolledText
 from queue import Queue
 
+
+def _add_logo(root: tk.Tk) -> None:
+    """Display the OnionChat logo if available."""
+    logo_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "Logo", "onionchat_logo.png")
+    )
+    if os.path.exists(logo_path):
+        try:
+            logo_img = tk.PhotoImage(file=logo_path)
+            root.logo_img = logo_img  # keep reference
+            tk.Label(root, image=logo_img).pack(pady=5)
+        except Exception:
+            pass
+
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import (
     padding as asym_padding,
@@ -79,6 +93,7 @@ def client_b_main(
     root = tk.Tk()
     root.title("Client B - Secure Chat")
     root.geometry("600x400")
+    _add_logo(root)
 
     try:
         with open(public_key_file, "rb") as f:
@@ -453,6 +468,7 @@ def client_b_setup(args):
     root = tk.Tk()
     root.title("Client B Setup")
     root.geometry("400x300")
+    _add_logo(root)
 
     tk.Label(root, text="Onion Address:").pack(pady=5)
     onion_entry = tk.Entry(root, width=50)
