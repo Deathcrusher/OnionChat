@@ -151,13 +151,9 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 
 For a one-step build you can run:
 ```bash
-bash compile.sh  # Linux/macOS
+bash compile.sh
 ```
-On Windows use PowerShell:
-```powershell
-./compile.ps1
-```
-These scripts install dependencies, compile the optional C extension, and place the executables in `dist/`.
+This script installs dependencies, compiles the optional C extension, and places the executables in `dist/`.
 
    - Pass `--windowed` (or `--noconsole` on Windows) to hide the command prompt
      and launch the GUI directly.
