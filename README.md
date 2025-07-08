@@ -138,14 +138,13 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 2. **Compile the Binaries**:
   - Build Client A:
     ```bash
-    python -m PyInstaller --onefile --windowed -m onionchat.client_a_main
+    python -m PyInstaller --onefile --windowed onionchat/client_a_main.py
     ```
      This creates `dist/client_a_main` (`client_a.exe` on Windows).
-     (Older instructions mistakenly used `onion.client_a_main`; be sure to use
-     ``onionchat.client_a_main``.)
+     (Older instructions used module notation like ``-m onionchat.client_a_main``.)
   - Build Client B:
     ```bash
-    python -m PyInstaller --onefile --windowed -m onionchat.client_b_main
+    python -m PyInstaller --onefile --windowed onionchat/client_b_main.py
     ```
      This creates `dist/client_b_main` (`client_b.exe` on Windows).
 
