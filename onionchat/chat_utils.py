@@ -241,7 +241,13 @@ def scan_qr_code(root: tk.Tk):
 
 
 def setup_hidden_service(port: int, use_stem: bool = False):
-    """Create a Tor hidden service using ``stem``."""
+    """Create a Tor hidden service using ``stem``.
+
+    If a Tor control connection cannot be established, the function will attempt
+    to start a Tor process automatically using ``stem.process``. It also tries to
+    install ``stem`` on the fly if the module is missing. This provides a best
+    effort approach so users do not need to start Tor manually.
+    """
     use_stem = use_stem or os.environ.get("ONIONCHAT_USE_STEM") == "1"
 
     if not use_stem:
@@ -249,25 +255,57 @@ def setup_hidden_service(port: int, use_stem: bool = False):
             "torpy does not support creating hidden services; use --tor-impl stem"
         )
 
-    if Controller is None:
-        raise RuntimeError("stem is required to create hidden services")
+    # Attempt to import required stem modules, installing them if necessary.
+    try:
+        from stem.control import Controller  # type: ignore
+        from stem.process import launch_tor_with_config  # type: ignore
+    except Exception:  # pragma: no cover - network dependency
+        try:
+            import subprocess, sys
+
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "stem"])
+            from stem.control import Controller  # type: ignore
+            from stem.process import launch_tor_with_config  # type: ignore
+        except Exception as e:  # pragma: no cover - network dependency
+            raise RuntimeError("stem is required to create hidden services") from e
+
+    tor_process = None
 
     try:
-        ctrl = Controller.from_port()
-        ctrl.authenticate()
+        try:
+            ctrl = Controller.from_port()
+            ctrl.authenticate()
+        except Exception:
+            tor_process = launch_tor_with_config({"ControlPort": "9051", "SOCKSPort": "9050"})
+            ctrl = Controller.from_port()
+            ctrl.authenticate()
+
         hs = ctrl.create_ephemeral_hidden_service({80: port}, await_publication=True)
 
         class _Service:
-            def __init__(self, controller, service_id):
+            def __init__(self, controller, service_id, process):
                 self.controller = controller
                 self.service_id = service_id
+                self.process = process
 
-            def close(self):
+            def close(self):  # pragma: no cover - cleanup code
                 try:
                     self.controller.remove_ephemeral_hidden_service(self.service_id)
                 finally:
-                    self.controller.close()
+                    try:
+                        self.controller.close()
+                    finally:
+                        if self.process:
+                            try:
+                                self.process.kill()
+                            except Exception:
+                                pass
 
-        return ctrl, _Service(ctrl, hs.service_id), f"{hs.service_id}.onion"
+        return ctrl, _Service(ctrl, hs.service_id, tor_process), f"{hs.service_id}.onion"
     except Exception as e:  # pragma: no cover - network dependency
+        if tor_process:
+            try:
+                tor_process.kill()
+            except Exception:
+                pass
         raise RuntimeError(f"Failed to create hidden service using stem: {e}")
