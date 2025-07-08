@@ -39,6 +39,13 @@ now include `stem`, allowing the client to start Tor automatically if no Tor
 process is running. If any required package (including `stem`) is missing at
 runtime, OnionChat will try to install it automatically.
 
+### Install Tor
+OnionChat requires the Tor executable to create hidden services. If no Tor
+binary is found, the client attempts to download an official Tor Expert
+Bundle for your platform into `tor_files/`. Should this fail, install Tor
+manually or set the `TOR_PATH` environment variable to the location of the
+`tor` binary before running `client-a` or `client-b`.
+
 ### Install via `pip`
 If you prefer using `pip`, the project can be installed as a package after cloning:
 ```bash

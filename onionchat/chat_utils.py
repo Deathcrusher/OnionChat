@@ -5,7 +5,10 @@ setup helpers.
 """
 
 import os
+import platform
 import secrets
+import tarfile
+import urllib.request
 import tkinter as tk
 from tkinter import messagebox, filedialog, simpledialog
 from cryptography.hazmat.primitives import serialization, hashes
@@ -39,6 +42,11 @@ try:
 except Exception:
     pyperclip = None
 
+
+TOR_VERSION = "14.5.4"
+TOR_BASE_URL = f"https://dist.torproject.org/torbrowser/{TOR_VERSION}/"
+
+
 try:
     from stem.control import Controller
 except Exception:  # pragma: no cover - optional dependency
@@ -66,6 +74,67 @@ def secure_wipe(data):
                 ba[i] = 0
     except Exception:
         pass
+
+
+def _download_tor_bundle(dest_dir: str) -> str | None:
+    """Download and extract a Tor expert bundle for the current platform."""
+    system = platform.system()
+    machine = platform.machine()
+    bundle_map = {
+        ("Windows", "AMD64"): f"tor-expert-bundle-windows-x86_64-{TOR_VERSION}.tar.gz",
+        ("Windows", "x86"): f"tor-expert-bundle-windows-i686-{TOR_VERSION}.tar.gz",
+        ("Linux", "x86_64"): f"tor-expert-bundle-linux-x86_64-{TOR_VERSION}.tar.gz",
+        ("Linux", "i686"): f"tor-expert-bundle-linux-i686-{TOR_VERSION}.tar.gz",
+        ("Darwin", "x86_64"): f"tor-expert-bundle-macos-x86_64-{TOR_VERSION}.tar.gz",
+        ("Darwin", "arm64"): f"tor-expert-bundle-macos-aarch64-{TOR_VERSION}.tar.gz",
+    }
+    file_name = bundle_map.get((system, machine))
+    if not file_name:
+        return None
+    url = TOR_BASE_URL + file_name
+    archive = os.path.join(dest_dir, file_name)
+    try:
+        if not os.path.exists(archive):
+            urllib.request.urlretrieve(url, archive)
+        with tarfile.open(archive, "r:gz") as tar:
+            tar.extractall(dest_dir)
+        bundle_dir = os.path.join(dest_dir, file_name[:-7])
+        tor_bin = os.path.join(
+            bundle_dir,
+            "Tor",
+            "tor.exe" if system == "Windows" else "tor",
+        )
+        if os.path.exists(tor_bin):
+            os.chmod(tor_bin, 0o755)
+            return tor_bin
+    except Exception:
+        return None
+    return None
+
+
+def _ensure_tor() -> str | None:
+    """Return path to Tor, downloading a bundle if necessary."""
+    tor_dir = os.path.join(os.path.dirname(__file__), "..", "tor_files")
+    os.makedirs(tor_dir, exist_ok=True)
+    tor_path = os.environ.get("TOR_PATH")
+    if tor_path and os.path.exists(tor_path):
+        return tor_path
+    candidate = os.path.join(
+        tor_dir,
+        "Tor",
+        "tor.exe" if os.name == "nt" else "tor",
+    )
+    if os.path.exists(candidate):
+        return candidate
+    if os.name == "nt":
+        for path in [
+            os.path.expanduser("~/Desktop/Tor Browser/Browser/TorBrowser/tor.exe"),
+            "C:\\Program Files\\Tor Browser\\Browser\\TorBrowser\\tor.exe",
+            "C:\\Tor Browser\\Browser\\TorBrowser\\tor.exe",
+        ]:
+            if os.path.exists(path):
+                return path
+    return _download_tor_bundle(tor_dir)
 
 
 def generate_keys():
@@ -306,28 +375,7 @@ def setup_hidden_service(port: int, use_stem: bool = False):
             ) from e
 
     tor_process = None
-    tor_path = os.environ.get("TOR_PATH")
-    if not tor_path:
-        # Look for bundled Tor executable
-        bundled_tor_path = os.path.join(os.path.dirname(__file__), '..', 'tor_files', 'tor-expert-bundle-windows-x86_64-14.5.4', 'Tor', 'tor.exe')
-        if os.path.exists(bundled_tor_path):
-            tor_path = bundled_tor_path
-        elif os.name == "nt":
-            # Common locations for Tor Browser on Windows
-            possible_paths = [
-                os.path.expanduser("~/Desktop/Tor Browser/Browser/TorBrowser/tor.exe"),
-                "C:\Program Files\Tor Browser\Browser\TorBrowser\tor.exe",
-                "C:\Tor Browser\Browser\TorBrowser\tor.exe",
-            ]
-            for path in possible_paths:
-                if os.path.exists(path):
-                    tor_path = path
-                    break
-
-    # Fall back to the 'tor' executable if no path was found. ``stem`` expects a
-    # string path and will raise a ``TypeError`` if ``None`` is provided.
-    if tor_path is None:
-        tor_path = "tor"
+    tor_path = _ensure_tor() or "tor"
 
     try:
         try:
@@ -336,8 +384,8 @@ def setup_hidden_service(port: int, use_stem: bool = False):
         except Exception:
             tor_process = launch_tor_with_config(
                 config={"ControlPort": "9051", "SOCKSPort": "9050"},
-                tor_cmd=tor_path,  # Can be None
-                
+                tor_cmd=tor_path,
+
             )
             ctrl = Controller.from_port()
             ctrl.authenticate()
@@ -372,6 +420,15 @@ def setup_hidden_service(port: int, use_stem: bool = False):
             _Service(ctrl, hs.service_id, tor_process),
             f"{hs.service_id}.onion",
         )
+    except FileNotFoundError as e:  # pragma: no cover - tor missing
+        if tor_process:
+            try:
+                tor_process.kill()
+            except Exception:
+                pass
+        raise RuntimeError(
+            "Tor executable not found. Automatic download failed; install Tor or set TOR_PATH"
+        ) from e
     except Exception as e:  # pragma: no cover - network dependency
         if tor_process:
             try:
