@@ -19,11 +19,13 @@ dependencies = [
     "pyperclip==1.8.2",
     "numpy<2",
     "stem==1.8.2",
+    "PyQt6==6.9.1",
 ]
 
 [project.scripts]
 client-a = "onionchat.client_a_main:main"
 client-b = "onionchat.client_b_main:main"
+client-qt = "onionchat.gui_qt:main"
 
 [tool.setuptools]
 packages = ["onionchat"]
