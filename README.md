@@ -1,6 +1,6 @@
 # OnionChat 🧅💬
 
-OnionChat is a secure, anonymous, one-time chat messenger built with Python. It leverages Tor hidden services for anonymity, RSA-4096 and ECDH (Curve25519) for key exchange with forward secrecy, AES-256-GCM for message encryption, and a user-friendly Tkinter GUI with QR code-based credential sharing. Designed for private, ephemeral communication, OnionChat ensures no persistent data is stored, with a kill switch controlled by Client A to prevent reconnection. 🔒🚀
+OnionChat is a secure, anonymous, one-time chat messenger built with Python. It leverages Tor hidden services for anonymity, RSA-4096 and ECDH (Curve25519) for key exchange with forward secrecy, AES-256-GCM for message encryption, and a user-friendly GUI with QR code-based credential sharing. Designed for private, ephemeral communication, OnionChat ensures no persistent data is stored, with a kill switch controlled by Client A to prevent reconnection. 🔒🚀
 
 ## Features 🌟
 
@@ -9,7 +9,7 @@ OnionChat is a secure, anonymous, one-time chat messenger built with Python. It 
 - **One-Time Sessions** ⏳: Ephemeral sessions with no message storage and reconnection prevention.
 - **Kill Switch** 🛑: Client A can terminate the session with a signed message, ensuring control.
 - **QR Code Sharing** 📷: Encrypted QR codes (with passphrase) for secure sharing of onion address, session ID, and public key.
-- **GUI Interface** 🖥️: Tkinter-based GUI for intuitive chat and setup, with integrated QR code scanning and display.
+- **GUI Interface** 🖥️: Modern PyQt6 GUI for intuitive chat and setup, with integrated QR code scanning and display.
 - **Message Padding** 📏: Fixed-length messages to prevent metadata leakage.
 - **Secure File Transfer** 📁: Transfer files over the encrypted session.
 - **File Size Limit** 📦: Configurable maximum file size (default 100 MB) to avoid abuse.
@@ -136,18 +136,18 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
    - Pass `--windowed` (or `--noconsole` on Windows) to hide the command prompt
      and launch the GUI directly.
 3. **Platform-Specific Notes**:
-   - **Linux** 🐧:
-     - Requires `python3-tk` for Tkinter (e.g., `sudo apt install python3-tk`).
+  - **Linux** 🐧:
+    - Requires `python3-pyqt6` (or `pip install PyQt6`).
      - Ensure X11 or another graphical environment is running.
      - Test Client A: `./dist/client_a_main`.
      - Test Client B: `./dist/client_b_main`.
-   - **Windows** 🪟:
-     - Tkinter is included with Python; no additional setup needed.
+  - **Windows** 🪟:
+    - PyQt6 wheels are available via `pip`; no extra setup needed.
      - Run Client A: `dist\client_a_main.exe`.
      - Run Client B: `dist\client_b_main.exe`.
      - If compiling on another platform for Windows, use Wine or a Windows VM, or specify `--target-architecture x64`.
-   - **macOS** 🍎:
-     - Tkinter is included with Python; ensure a Python version from python.org or Homebrew for best compatibility.
+  - **macOS** 🍎:
+    - Install PyQt6 via `pip` or Homebrew Python for best compatibility.
      - Run Client A: `./dist/client_a_main`.
      - Run Client B: `./dist/client_b_main`.
      - macOS may require signing the binaries for Gatekeeper: `codesign -f -s - dist/client_a_main`.
@@ -155,10 +155,11 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
    - Copy `dist/client_a_main*` and/or `dist/client_b_main*` to the target machine.
    - Ensure the target machine has a graphical environment and internet access for Tor connectivity.
    - No Python or dependencies need to be installed on the target machine.
-   - Test each executable on a clean system to confirm it launches without additional files.
+
+    - Test each executable on a clean system to confirm it launches without additional files.
 
 ### Troubleshooting Compilation ⚠️
-- **Large Binary Size**: The binary includes Python, Tkinter, `torpy`, `cryptography`, and other dependencies, resulting in ~60-80 MB. Use `--strip` to reduce size slightly, but expect large binaries due to OpenCV and Pillow.
+- **Large Binary Size**: The binary includes Python, PyQt6, `torpy`, `cryptography`, and other dependencies, resulting in ~60-80 MB. Use `--strip` to reduce size slightly, but expect large binaries due to OpenCV and Pillow.
 - **Missing Dependencies**: If compilation fails, ensure all dependencies are installed (`pip install -r requirements.txt`).
 - **Graphical Environment**: The binary requires a GUI environment; it will fail on headless servers.
 - **Cross-Compilation**: For cross-platform builds, use a VM or Docker with the target OS, or tools like `pyinstaller --target-architecture` (limited support).
