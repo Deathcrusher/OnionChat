@@ -13,7 +13,7 @@ pip install -r requirements.txt pyinstaller
 python setup.py build_ext --inplace
 
 # Build Client A and Client B executables
-python -m PyInstaller --onefile --windowed -m onionchat.client_a_main -n client_a_main
-python -m PyInstaller --onefile --windowed -m onionchat.client_b_main -n client_b_main
+python -m PyInstaller --onefile --windowed onionchat/client_a_main.py -n client_a_main
+python -m PyInstaller --onefile --windowed onionchat/client_b_main.py -n client_b_main
 
 Write-Host "Executables are available in the dist/ directory."
