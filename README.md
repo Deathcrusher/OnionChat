@@ -30,7 +30,10 @@ Run the following command to install required Python packages:
 pip install -r requirements.txt
 ```
 
-All dependencies must be installed before running OnionChat.
+All dependencies must be installed before running OnionChat. The requirements
+now include `stem`, allowing the client to start Tor automatically if no Tor
+process is running. If `stem` is missing at runtime, OnionChat will attempt to
+install it for you.
 
 ### Install via `pip`
 If you prefer using `pip`, the project can be installed as a package after cloning:
