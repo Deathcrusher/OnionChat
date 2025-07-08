@@ -456,12 +456,14 @@ def client_b_setup(args):
 
     tk.Label(root, text="Onion Address:").pack(pady=5)
     onion_entry = tk.Entry(root, width=50)
-    onion_entry.insert(0, args.onion if hasattr(args, "onion") else "")
+    onion_val = getattr(args, "onion", None)
+    onion_entry.insert(0, str(onion_val) if onion_val is not None else "")
     onion_entry.pack(pady=5)
 
     tk.Label(root, text="Session ID:").pack(pady=5)
     session_entry = tk.Entry(root, width=50)
-    session_entry.insert(0, args.session if hasattr(args, "session") else "")
+    session_val = getattr(args, "session", None)
+    session_entry.insert(0, str(session_val) if session_val is not None else "")
     session_entry.pack(pady=5)
 
     tk.Label(root, text="Public Key File:").pack(pady=5)
