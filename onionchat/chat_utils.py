@@ -98,15 +98,15 @@ def _download_tor_bundle(dest_dir: str) -> str | None:
             urllib.request.urlretrieve(url, archive)
         with tarfile.open(archive, "r:gz") as tar:
             tar.extractall(dest_dir)
-        bundle_dir = os.path.join(dest_dir, file_name[:-7])
-        tor_bin = os.path.join(
-            bundle_dir,
-            "Tor",
-            "tor.exe" if system == "Windows" else "tor",
-        )
-        if os.path.exists(tor_bin):
-            os.chmod(tor_bin, 0o755)
-            return tor_bin
+        for base in [os.path.join(dest_dir, file_name[:-7]), dest_dir]:
+            tor_bin = os.path.join(
+                base,
+                "tor",
+                "tor.exe" if system == "Windows" else "tor",
+            )
+            if os.path.exists(tor_bin):
+                os.chmod(tor_bin, 0o755)
+                return tor_bin
     except Exception:
         return None
     return None
@@ -121,7 +121,7 @@ def _ensure_tor() -> str | None:
         return tor_path
     candidate = os.path.join(
         tor_dir,
-        "Tor",
+        "tor",
         "tor.exe" if os.name == "nt" else "tor",
     )
     if os.path.exists(candidate):
