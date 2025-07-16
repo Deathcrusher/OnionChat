@@ -13,3 +13,4 @@ client_b_main.spec
 dist/
 onionchat.egg-info/
 tor_files/
+target/

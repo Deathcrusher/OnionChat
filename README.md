@@ -239,6 +239,22 @@ Contributions are welcome! Please follow these steps:
 - Test changes on Linux, Windows, or macOS with a graphical environment.
 - Ensure Tor network connectivity for testing.
 
+## Rust CLI 🚀
+The [`onionchat-rs`](onionchat-rs) directory contains a production-ready implementation in Rust.
+Enable the optional GUI with `--gui`; it is built with `eframe` and shows connection status, scrollable message history, and lets you save the chat log.
+Hidden service support uses the system `tor` binary when available.
+If `tor` is missing, the client automatically falls back to the pure‑Rust
+[`arti-client`](https://crates.io/crates/arti-client) library to connect to
+`.onion` services (hosting still requires `tor`).
+The code depends on `x25519-dalek` v2 to address timing side-channel issues in
+older `curve25519-dalek` releases. Running `cargo audit` currently reports one
+outstanding advisory in the `rsa` crate pulled in by `arti-client`; no fix is
+available upstream yet.
+Run `cargo run -- --help` to see options.
+To produce a standalone binary run `cargo build --release`. The executable will
+be placed in `target/release/onionchat-rs` and can be distributed as-is. For
+Windows, build with `--target x86_64-pc-windows-msvc` to get an `.exe` file.
+
 ## License 📜
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
