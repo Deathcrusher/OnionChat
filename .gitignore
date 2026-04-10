@@ -1,16 +1,55 @@
+```
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
 *.so
+.Python
 build/
-build.log
-.pytest_cache/
-_wiper.cpython-*.so
-client_a.spec
-client_a_main.spec
-client_b.spec
-client_b_main.spec
+develop-eggs/
 dist/
-onionchat.egg-info/
-tor_files/
-target/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Testing
+.coverage
+coverage/
+htmlcov/
+.nosetests
+.unit_test_results.xml
+.pytest_cache/
+.coverage.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+*.env.*
+```
