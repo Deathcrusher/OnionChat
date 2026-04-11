@@ -1,29 +1,51 @@
-```yaml
-name: CI
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+# Dependencies
+.venv/
+venv/
+.env
+.env.local
+*.env.*
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        
-    - name: Run tests
-      run: |
-        pytest tests/
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editors
+.vscode/
+.idea/
+*.pyc
+*.pyo
+*.pyd
+*.py~
+*.bak
+*.swp
+*.swo
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+.coverage.*
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# OS generated files
+.DS_Store
+Thumbs.db
 ```
