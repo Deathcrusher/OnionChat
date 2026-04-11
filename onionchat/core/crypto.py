@@ -4,6 +4,7 @@ Core cryptographic operations for OnionChat.
 Implements:
 - RSA-4096 for authentication
 - ECDH (X25519) for key exchange with forward secrecy
+- HKDF for secure key derivation
 - AES-256-GCM for message encryption
 - Secure memory wiping
 """
@@ -16,25 +17,34 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
+from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding, ed25519, x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 
 @dataclass
 class KeyPair:
-    """RSA or ECDH key pair."""
+    """RSA, ECDH, or X25519 key pair."""
     private_key: object
     public_key: object
     public_bytes: bytes = field(default_factory=bytes, repr=False)
     
     def __post_init__(self):
         if self.public_bytes == b"":
-            if isinstance(self.public_key, ec.EllipticCurvePublicKey):
+            # Handle X25519 keys
+            if isinstance(self.public_key, x25519.X25519PublicKey):
                 self.public_bytes = self.public_key.public_bytes(
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PublicFormat.SubjectPublicKeyInfo,
                 )
+            # Handle EC keys
+            elif isinstance(self.public_key, ec.EllipticCurvePublicKey):
+                self.public_bytes = self.public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+            # Handle RSA keys
             else:
                 self.public_bytes = self.public_key.public_bytes(
                     encoding=serialization.Encoding.PEM,
@@ -97,22 +107,29 @@ def generate_rsa_keys(key_size: int = 4096) -> KeyPair:
 
 def generate_ecdh_keys() -> KeyPair:
     """Generate ECDH (X25519) key pair for key exchange."""
-    private_key = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+    private_key = x25519.X25519PrivateKey.generate()
     public_key = private_key.public_key()
     return KeyPair(private_key=private_key, public_key=public_key)
 
 
 def derive_session_keys(
-    local_private: ec.EllipticCurvePrivateKey,
-    remote_public: ec.EllipticCurvePublicKey,
+    local_private: x25519.X25519PrivateKey,
+    remote_public: x25519.X25519PublicKey,
     salt: bytes
 ) -> SessionKeys:
-    """Derive session keys using ECDH and HKDF-like construction."""
-    shared_secret = local_private.exchange(ec.ECDH(), remote_public)
+    """Derive session keys using ECDH and HKDF (proper key derivation)."""
+    # Perform ECDH to get shared secret
+    shared_secret = local_private.exchange(remote_public)
     
-    hkdf_input = shared_secret + salt
-    
-    derived = hashlib.pbkdf2_hmac('sha256', hkdf_input, salt, 100000, dklen=64)
+    # Use HKDF for proper key derivation (not PBKDF2 which is for passwords)
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=64,
+        salt=salt,
+        info=b"onionchat-session-keys",
+        backend=default_backend()
+    )
+    derived = hkdf.derive(shared_secret)
     
     encryption_key = derived[:32]
     authentication_key = derived[32:]

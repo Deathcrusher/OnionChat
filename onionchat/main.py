@@ -142,8 +142,10 @@ async def run_cli_join(qr_data: str):
     
     config = SessionConfig.generate()
     transport_config = TransportConfig(
-        host="localhost",  # Will be overridden by onion address
-        port=config.hidden_service_port
+        host=credentials.onion_address,  # Use onion address from credentials
+        port=config.hidden_service_port,
+        tor_control_port=config.control_port,
+        tor_socks_port=config.tor_port
     )
     
     session = ChatSession(
@@ -163,8 +165,23 @@ async def run_cli_join(qr_data: str):
     session.set_status_callback(on_status)
     
     await session.initialize()
-    # TODO: Implement proper join flow
-    print("Join flow not yet implemented in CLI mode")
+    
+    # Store remote credentials for signature verification
+    session.session_info.remote_credentials = credentials
+    
+    await session.start()
+    
+    # Start input loop
+    loop = asyncio.get_event_loop()
+    while session._running:
+        try:
+            text = await loop.run_in_executor(None, input, "> ")
+            if text.lower() == "exit":
+                break
+            await session.send_message(text)
+        except EOFError:
+            break
+    
     await session.stop()
 
 
