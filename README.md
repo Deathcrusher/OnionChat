@@ -130,7 +130,7 @@ OnionChat can be compiled into standalone executables for Linux, Windows, and ma
 ### Compilation Steps 🛠️
 1. **Clone the Repository** (if not already done):
    ```bash
-   git clone https://github.com/<your-username>/OnionChat.git
+   git clone https://github.com/Deathcrusher/OnionChat.git
    cd OnionChat
 ```
 
